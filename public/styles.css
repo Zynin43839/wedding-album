@@ -1361,6 +1361,9 @@ input[type="text"]:focus {
 
 /* ─────────── pending-upload banner ─────────── */
 .pendingBanner {
+  /* sticky under the tab bar: the guest is usually scrolled down to the queue,
+     and a banner that sits above the fold is a banner nobody sees */
+  position: sticky; top: 56px; z-index: 19;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin: 0 auto 10px; max-width: 720px; padding: 10px 14px;
   background: #fff8e8; border: 1px solid rgba(192, 160, 98, 0.55);

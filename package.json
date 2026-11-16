@@ -30,7 +30,9 @@
     "test:queue": "node scripts/queue_persist_test.mjs",
     "test:lock": "python scripts/lock_test.py",
     "test:sw": "node scripts/sw_test.mjs",
-    "test:cap": "python scripts/batch_cap_test.py"
+    "test:cap": "python scripts/batch_cap_test.py",
+    "build:prod-config": "node scripts/gen-prod-config.mjs",
+    "ci": "npm run test:unit && node scripts/gen-prod-config.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.50.0",

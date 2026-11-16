@@ -171,21 +171,21 @@ function explainError(err) {
   const code = String((err && (err.code || err.message)) || 'unknown');
   const status = Number((err && err.status) || 0);
   const table = {
-    network: { text: 'สัญญาณไม่ดี — รูปยังอยู่ในเครื่องคุณ', retry: true, tag: 'E-NET' },
-    timeout: { text: 'ส่งไม่ทันเวลา — ลองอีกครั้ง', retry: true, tag: 'E-TIME' },
+    network: { text: 'สัญญาณไม่ดี รูปยังอยู่ในเครื่องคุณ', retry: true, tag: 'E-NET' },
+    timeout: { text: 'ส่งไม่ทันเวลา ลองอีกครั้ง', retry: true, tag: 'E-TIME' },
     too_large: { text: 'ไฟล์ใหญ่เกินกว่าที่ระบบรับได้', retry: false, tag: 'E-413' },
     bad_type: { text: 'เครื่องนี้ส่งไฟล์ชนิดนี้ไม่ได้', retry: false, tag: 'E-415' },
-    bad_id: { text: 'เกิดข้อผิดพลาดกับชื่อไฟล์ — ลองถ่ายใหม่', retry: false, tag: 'E-400' },
-    bad_code: { text: 'ลิงก์ไม่ถูกต้อง — ขอ QR จากเจ้าภาพ', retry: false, tag: 'E-403' },
+    bad_id: { text: 'ชื่อไฟล์มีปัญหา ลองถ่ายใหม่', retry: false, tag: 'E-400' },
+    bad_code: { text: 'ลิงก์ไม่ถูกต้อง ขอ QR จากเจ้าภาพ', retry: false, tag: 'E-403' },
     expired: { text: 'อัลบั้มปิดรับชมแล้ว', retry: false, tag: 'E-410' },
-    length_required: { text: 'ส่งไฟล์ไม่ครบ — ลองอีกครั้ง', retry: true, tag: 'E-411' },
-    quota: { text: 'อัลบั้มเต็มสำหรับวันนี้ — กลับมาได้หลัง 07:00 น.', retry: false, tag: 'E-429' },
+    length_required: { text: 'ส่งไฟล์ไม่ครบ ลองอีกครั้ง', retry: true, tag: 'E-411' },
+    quota: { text: 'อัลบั้มเต็มสำหรับวันนี้ กลับมาใหม่หลัง 07:00 น.', retry: false, tag: 'E-429' },
   };
   if (table[code]) return { code, ...table[code] };
   if (status === 429 || status === 503) return { code, ...table.quota };
-  if (status >= 500) return { code, text: 'เซิร์ฟเวอร์ขัดข้อง — ลองอีกครั้ง', retry: true, tag: 'E-5XX' };
+  if (status >= 500) return { code, text: 'ระบบขัดข้อง ลองอีกครั้ง', retry: true, tag: 'E-5XX' };
   if (code === 'conflict') return { code, text: '', retry: false, tag: 'E-409', duplicate: true };
-  return { code, text: 'ส่งไม่สำเร็จ — ลองอีกครั้ง', retry: true, tag: 'E-000' };
+  return { code, text: 'ส่งไม่สำเร็จ ลองอีกครั้ง', retry: true, tag: 'E-000' };
 }
 
 const FRAMES = [
@@ -267,7 +267,7 @@ function addFiles(fileList, hint) {
     const limit = kind === 'video' ? state.cfg.maxVideoMb : state.cfg.maxPhotoMb;
 
     if (hint === 'video' && kind === 'photo') {
-      toast('ไฟล์นี้เป็นรูปภาพ — ส่งเป็นรูปให้แล้ว');
+      toast('ไฟล์นี้เป็นรูปภาพ ส่งเป็นรูปให้แล้ว');
     }
 
     if (file.size > limit * MB) {
@@ -459,7 +459,7 @@ async function openRecorder() {
   if (state.expired) return;
 
   if (!recSupported()) {
-    toast('เครื่องนี้บันทึกวิดีโอในหน้าเว็บไม่ได้ — เลือกวิดีโอจากคลังได้เลย');
+    toast('เครื่องนี้บันทึกวิดีโอในหน้าเว็บไม่ได้ เลือกวิดีโอจากคลังแทนได้เลย');
     $('#pickPhoto').click();
     return;
   }
@@ -471,7 +471,7 @@ async function openRecorder() {
     });
   } catch (e) {
     const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-    toast(denied ? 'ยังไม่ได้อนุญาตให้ใช้กล้อง — ใช้ “วิดีโอจากคลัง” แทนได้' : 'เปิดกล้องไม่ได้ — ใช้ “วิดีโอจากคลัง” แทน');
+    toast(denied ? 'ยังไม่ได้อนุญาตให้ใช้กล้อง ใช้ “วิดีโอจากคลัง” แทนได้' : 'เปิดกล้องไม่ได้ ใช้ “วิดีโอจากคลัง” แทน');
     return;
   }
 
@@ -480,7 +480,7 @@ async function openRecorder() {
   preview.muted = true;
   preview.play().catch(() => {});
   $('#recTime').textContent = '00:00';
-  $('#recHint').textContent = 'อัดได้สูงสุด 60 วินาที · พอกดหยุด วิดีโอจะเข้าคิว “ตรวจก่อนส่ง”';
+  $('#recHint').textContent = 'อัดได้สูงสุด 60 วินาที · เมื่อกดหยุด วิดีโอจะเข้าคิว “ตรวจก่อนส่ง”';
   $('#recToggle').textContent = 'เริ่มอัด';
   $('#recToggle').classList.add('primary');
   $('#recWrap').hidden = false;
@@ -532,7 +532,7 @@ function toggleRecording() {
       rec.mime = rec.mr.mimeType || '';
       rec.ext = /mp4/i.test(rec.mime) ? 'mp4' : 'webm';
     } catch {
-      toast('เครื่องนี้บันทึกวิดีโอไม่ได้ — ใช้ “วิดีโอจากคลัง” แทน');
+      toast('เครื่องนี้บันทึกวิดีโอไม่ได้ ใช้ “วิดีโอจากคลัง” แทน');
       closeRecorder(true);
       return;
     }
@@ -559,11 +559,11 @@ function toggleRecording() {
     const file = new File([blob], `clip-${makeId()}.${rec.ext}`, { type });
     const limitMb = state.cfg.maxVideoMb || 80;
     if (file.size > limitMb * MB) {
-      toast(`คลิปใหญ่เกิน ${limitMb} MB — อัดให้สั้นลง`);
+      toast(`คลิปใหญ่เกิน ${limitMb} MB อัดให้สั้นลง`);
       return;
     }
     addFiles([file], 'video');
-    toast('อัดเสร็จแล้ว — ตรวจก่อนกดอัปโหลด');
+    toast('อัดเสร็จแล้ว ตรวจก่อนกดอัปโหลด');
   };
 
   rec.mr.start(1000);
@@ -640,7 +640,7 @@ function renderQueueItem(item) {
 /** Remove a queue row that has not started (or is already sent). */
 function dropQueued(item) {
   if (item.status === 'busy') {
-    toast('กำลังส่งอยู่ — รอให้เสร็จก่อน');
+    toast('กำลังส่งอยู่ รอให้ไฟล์นี้เสร็จก่อน');
     return;
   }
   item.el?.kill?.setAttribute('disabled', '');
@@ -681,7 +681,7 @@ async function updatePendingBanner() {
     return;
   }
 
-  const mb = stored.bytes ? ` (${(stored.bytes / 1048576).toFixed(1)} MB)` : '';
+  const mb = stored.bytes >= 50000 ? ` (${(stored.bytes / 1048576).toFixed(1)} MB)` : '';
   $('#pendingText').textContent = `มี ${files} ไฟล์รอส่ง${mb}`;
   bar.hidden = false;
   document.title = `(${files}) ภาพความทรงจำ`;
@@ -819,11 +819,11 @@ async function runUpload(item) {
       const exhausted = item.status === 'fail';
       setItemState(
         item,
-        exhausted ? `✕ ${info.text} — เก็บไว้ในเครื่อง` : `จะลองใหม่… (${item.tries}/3)`,
+        exhausted ? `✕ ${info.text} (เก็บไว้ในเครื่อง)` : `จะลองใหม่… (${item.tries}/3)`,
         0,
         exhausted ? 'bad' : ''
       );
-      if (exhausted) toast('ยังส่งไม่ได้ — เก็บไฟล์ไว้ให้ลองใหม่ภายหลัง', 5000);
+      if (exhausted) toast('ยังส่งไม่ได้ เก็บไฟล์ไว้ให้ลองใหม่ภายหลัง', 5000);
       // keep it in IndexedDB: the next visit can finish the job
     } else {
       setItemState(item, `✕ ${info.text}`, 0, 'bad');
@@ -1213,7 +1213,7 @@ async function loadMore() {
     const r = await fetch(url, { cache: 'no-store' });
     if (r.status === 410) return setExpired();
     if (r.status === 429 || r.status === 503) {
-      toast('ระบบเต็มโควตาของวันนี้ — ลองใหม่อีกครั้งหลัง 07:00 น.', 6000);
+      toast('ระบบเต็มโควตาของวันนี้ ลองใหม่หลัง 07:00 น.', 6000);
       return;
     }
     if (!r.ok) throw new Error('list_failed');
@@ -1551,7 +1551,7 @@ async function previewFrame() {
     const name = LB_FRAMES.find((f) => f.id === state.lbFrame)?.name || '';
     $('#lbNote').textContent = `ตัวอย่างกรอบ: ${name} · ไฟล์ที่จะได้เป็น PNG`;
   } catch {
-    $('#lbNote').textContent = 'แสดงตัวอย่างไม่ได้ — ดาวน์โหลดยังใช้ได้';
+    $('#lbNote').textContent = 'แสดงตัวอย่างไม่ได้ แต่ดาวน์โหลดยังใช้ได้';
   }
 }
 
@@ -1747,7 +1747,7 @@ async function downloadFramed() {
     saveBlob(blob, `${base}-${state.lbFrame}.png`);
     toast('ดาวน์โหลดภาพพร้อมกรอบแล้ว');
   } catch {
-    toast('ใส่กรอบไม่สำเร็จ — ดาวน์โหลดต้นฉบับแทน');
+    toast('ใส่กรอบไม่สำเร็จ ดาวน์โหลดต้นฉบับแทน');
     saveBlob(await (await fetch(item.url)).blob(), `${base}.jpg`);
   }
 }
@@ -1828,7 +1828,7 @@ async function startZip() {
 
   const est = list.reduce((s, i) => s + (i.size || 0), 0);
   if (est > 3.5 * 1024 ** 3) {
-    toast('ชุดที่เลือกใหญ่เกิน 3.5 GB — เลือกให้น้อยลงแล้วแบ่งดาวน์โหลด');
+    toast('ชุดที่เลือกใหญ่เกิน 3.5 GB เลือกให้น้อยลงแล้วแบ่งดาวน์โหลด');
     return;
   }
 
@@ -1858,9 +1858,9 @@ async function startZip() {
   $('#zipTitle').textContent = 'เสร็จสิ้น';
 
   if (result.cancelled) msg.textContent = 'ยกเลิกแล้ว';
-  else if (result.error === 'too_big') msg.textContent = 'ใหญ่เกิน 4 GB — แบ่งดาวน์โหลด';
+  else if (result.error === 'too_big') msg.textContent = 'ใหญ่เกิน 4 GB แบ่งดาวน์โหลด';
   else if (result.error) msg.textContent = 'เกิดข้อผิดพลาด: ' + result.error;
-  else msg.textContent = `เสร็จ — ${result.files} ไฟล์${result.failed ? ` (พลาด ${result.failed})` : ''}`;
+  else msg.textContent = `เสร็จแล้ว ${result.files} ไฟล์${result.failed ? ` (พลาด ${result.failed})` : ''}`;
 
   setTimeout(() => {
     panel.hidden = true;

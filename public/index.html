@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FBF8F3">
-<meta name="description" content="อัลบั้มรวมภาพความทรงจำงานแต่ง — สแกน QR แล้วถ่ายรูปได้เลย">
+<meta name="description" content="อัลบั้มรวมภาพความทรงจำงานแต่ง สแกน QR แล้วถ่ายรูปได้เลย">
 <title>The Wedding Collection</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/art/logo-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/art/logo-192.png">
@@ -65,11 +65,11 @@
         <span>ชื่อของคุณ</span>
         <input id="guestName" type="text" maxlength="40" placeholder="เช่น สมชาย / พี่แอน" autocomplete="name">
       </label>
-      <p class="hint">ใส่ชื่อครั้งเดียว ระบบจะจำไว้ · รูปจะถูกย่อให้เล็กลงก่อนส่งอัตโนมัติ</p>
+      <p class="hint">ใส่ชื่อครั้งเดียว ระบบจะจำไว้ · ระบบย่อรูปให้เล็กลงก่อนส่งให้อัตโนมัติ</p>
     </div>
 
     <ul class="tips">
-      <li><b>อัดวิดีโอ</b> เปิดกล้องในหน้านี้ — อัดได้ครั้งละไม่เกิน 60 วินาที</li>
+      <li><b>อัดวิดีโอ</b> เปิดกล้องในหน้านี้ อัดได้ครั้งละไม่เกิน 60 วินาที</li>
       <li><b>เลือกจากคลัง</b> เลือกได้ทั้งรูปและวิดีโอจากเครื่องคุณ</li>
       <li>ถ้าเครื่องไม่อนุญาตให้ใช้กล้อง ให้อัดจากแอปกล้องปกติ แล้วกลับมาเลือกจากคลัง</li>
     </ul>
@@ -135,7 +135,7 @@
         <button id="reviewClear" class="link" hidden>ลบทั้งหมด</button>
         <button id="reviewSend" class="btn primary" disabled>อัปโหลด (0)</button>
       </div>
-      <p class="hint">แตะรูปเพื่อดูเต็มจอ · กด ✕ เพื่อลบรูปที่ไม่ต้องการออก ยังไม่มีอะไรถูกส่งจนกว่าจะกด “อัปโหลด”</p>
+      <p class="hint">แตะรูปเพื่อดูเต็มจอ · กด ✕ เพื่อลบรูปที่ไม่ต้องการออก ยังไม่มีอะไรส่งออกไปจนกว่าจะกด “อัปโหลด”</p>
     </div>
 
     <div id="queueWrap" class="card" hidden>
@@ -186,7 +186,7 @@
       </button>
       <div id="albumEmpty" class="empty" hidden>
         <img src="/art/logo.webp" alt="" width="512" height="512">
-        <p>ยังไม่มีภาพความทรงจำ — ไปแท็บ “ถ่ายรูป” แล้วเริ่มได้เลย</p>
+        <p>ยังไม่มีภาพความทรงจำ ไปที่แท็บ “ถ่ายรูป” แล้วเริ่มได้เลย</p>
       </div>
     </div>
 
@@ -215,7 +215,7 @@
           <label class="btn sm" for="cardFile">เลือกรูปจากเครื่อง</label>
           <input id="cardFile" type="file" accept="image/*" hidden>
         </div>
-        <p class="hint">รูปทั้งหมดจะถูกวาดในเครื่องคุณ — ไม่มีการอัปโหลดและไม่ใช้โควตาเพิ่ม</p>
+        <p class="hint">ระบบวาดรูปทั้งหมดในเครื่องคุณ ไม่มีการอัปโหลด จึงไม่ใช้โควตาเพิ่ม</p>
       </div>
 
       <label class="field">
@@ -275,7 +275,7 @@
       <button id="recCancel" class="link" type="button">ยกเลิก</button>
       <button id="recToggle" class="btn primary" type="button">เริ่มอัด</button>
     </div>
-    <p id="recHint" class="hint">อัดได้สูงสุด 60 วินาที · พอกดหยุด วิดีโอจะเข้าคิว “ตรวจก่อนส่ง”</p>
+    <p id="recHint" class="hint">อัดได้สูงสุด 60 วินาที · เมื่อกดหยุด วิดีโอจะเข้าคิว “ตรวจก่อนส่ง”</p>
   </div>
 </div>
 
