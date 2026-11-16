@@ -153,3 +153,7 @@ R2 ให้ 10 GB ฟรี และ egress ฟรีไม่จำกัด 
 | [`docs/art/PROMPTS.md`](docs/art/PROMPTS.md) | prompt ที่ใช้สร้างภาพดอกไม้ + ที่มาของสิทธิ์ |
 
 คู่มือขึ้น production: [`docs/DEPLOY.md`](docs/DEPLOY.md) · ถ้าจะขายเป็นบริการ ดูหัวข้อ "ต่อยอดเป็นสินค้า" ท้ายไฟล์นั้น
+
+> **Access code is not in this repository.** The live event uses a private code that lives in
+> `wrangler.prod.toml` (gitignored). To run any test against the deployed album, set it first:
+> `$env:EVENT_CODE="..."`. The committed `wrangler.toml` uses `demo-code` for local work.

@@ -11,6 +11,8 @@ Usage
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 import pathlib
@@ -26,7 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAG = pathlib.Path(r"C:\Users\TEEREDCOM\Desktop\Learning\Code-along\RAG-Diary")
 BUCKET = "wedding-album-media"
 HDRS = {"user-agent": "Mozilla/5.0"}
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 GUEST = "RAG-Diary"
 
 ARTWORKS = [

@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 
 BASE = "https://wedding-album.rj-wedding.workers.dev"
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 STATE = pathlib.Path(os.environ["TEMP"]) / "opencode" / "fiveg_stamp.txt"
 UA = {"user-agent": "Mozilla/5.0"}
 

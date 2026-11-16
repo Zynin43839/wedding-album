@@ -19,7 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 UA = {"user-agent": "Mozilla/5.0"}
 STAMP_PATH = pathlib.Path(os.environ["TEMP"]) / "opencode" / "batch_stamp.txt"
 fails: list[str] = []

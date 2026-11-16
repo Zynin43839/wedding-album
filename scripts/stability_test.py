@@ -13,6 +13,8 @@ clean with: python scripts/clean_album.py --guest STABTEST
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 import time
@@ -24,7 +26,7 @@ from io import BytesIO
 
 from PIL import Image
 
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 GUEST = "STABTEST"
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

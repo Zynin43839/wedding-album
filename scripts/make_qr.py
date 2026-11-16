@@ -22,6 +22,8 @@ Run: python scripts/make_qr.py
 """
 from __future__ import annotations
 
+import os
+
 import pathlib
 import sys
 
@@ -35,7 +37,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 # ── the link that goes on the card ───────────────────────────────────────────
 BASE = "https://wedding-album.rj-wedding.workers.dev"
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 URL = f"{BASE}/?e={CODE}"
 SHORT = BASE.replace("https://", "")
 

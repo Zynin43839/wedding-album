@@ -10,6 +10,8 @@ Run (with `python scripts/mock_drive.py` and `wrangler dev` already running):
 """
 from __future__ import annotations
 
+import os
+
 import json
 import time
 import urllib.parse
@@ -20,7 +22,7 @@ from PIL import Image
 
 WORKER = "http://127.0.0.1:8787"
 DRIVE = "http://127.0.0.1:8788"
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 SYNC_TOKEN = "test-sync-token"
 UA = {"user-agent": "Mozilla/5.0", "x-sync-token": SYNC_TOKEN}
 

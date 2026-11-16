@@ -128,8 +128,11 @@ function bindUi() {
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  $('#tab-shoot').hidden = name !== 'shoot';
-  $('#tab-album').hidden = name !== 'album';
+  for (const pane of ['shoot', 'album', 'card']) {
+    const el = document.getElementById(`tab-${pane}`);
+    if (el) el.hidden = name !== pane;
+  }
+  if (name === 'card') drawCard();
   // first visit to the album: list once, then one bundled request for the page
   if (name === 'album' && state.revealed === 0 && !state.loading) {
     (async () => {
@@ -1622,5 +1625,262 @@ async function startZip() {
   }, 4000);
 }
 
+
+/* ─────────────────────── thank-you card (client only) ─────────────────────── */
+
+const CARD_W = 1240;
+const CARD_H = 1748;
+const CARD_FRAMES = [
+  { id: 'gold', name: 'ทองคู่' },
+  { id: 'stamp', name: 'ดวงตรา' },
+  { id: 'plain', name: 'เรียบหรู' },
+];
+const card = { img: null, frame: 'gold' };
+
+function cardImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // the Worker sends allow-origin: *
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function drawCover(ctx, img, x, y, w, h) {
+  const iw = img.naturalWidth || img.width || w;
+  const ih = img.naturalHeight || img.height || h;
+  const scale = Math.max(w / iw, h / ih);
+  const sw = w / scale;
+  const sh = h / scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, x, y, w, h);
+  ctx.restore();
+}
+
+/** Perforated stamp edge: punch small paper-coloured holes along a rectangle. */
+function punchEdge(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.fillStyle = '#fbf8f3';
+  const r = 9;
+  const step = 34;
+  for (let i = x + step / 2; i < x + w; i += step) {
+    for (const yy of [y, y + h]) {
+      ctx.beginPath();
+      ctx.arc(i, yy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  for (let j = y + step / 2; j < y + h; j += step) {
+    for (const xx of [x, x + w]) {
+      ctx.beginPath();
+      ctx.arc(xx, j, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
+  const words = String(text).split(/\s+/);
+  let line = '';
+  const lines = [];
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight));
+}
+
+function paintCard(ctx) {
+  const W = CARD_W;
+  const H = CARD_H;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fbf8f3';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = '#c0a062';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(46, 46, W - 92, H - 92);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(66, 66, W - 132, H - 132);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#3f5233';
+  ctx.font = '600 56px "Cormorant Garamond", Georgia, serif';
+  ctx.fillText(state.cfg.names || 'Thank you', W / 2, 196);
+
+  ctx.fillStyle = '#6b7a5e';
+  ctx.font = '400 28px "Sarabun", "Noto Sans Thai", sans-serif';
+  ctx.fillText(state.cfg.date ? longDate(state.cfg.date) : '', W / 2, 250);
+
+  const px = 150;
+  const py = 320;
+  const pw = W - 300;
+  const ph = 880;
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(63,82,51,0.14)';
+  ctx.shadowBlur = 26;
+  ctx.shadowOffsetY = 10;
+  ctx.fillRect(px - 18, py - 18, pw + 36, ph + 36);
+  ctx.restore();
+
+  if (card.img) {
+    drawCover(ctx, card.img, px, py, pw, ph);
+  } else {
+    ctx.fillStyle = '#f3e2d2';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = '#6b7a5e';
+    ctx.font = '400 32px "Sarabun", "Noto Sans Thai", sans-serif';
+    ctx.fillText('เลือกรูปเพื่อเริ่ม', W / 2, py + ph / 2);
+  }
+
+  if (card.frame === 'gold') {
+    ctx.strokeStyle = '#c0a062';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(px - 34, py - 34, pw + 68, ph + 68);
+  } else if (card.frame === 'stamp') {
+    punchEdge(ctx, px - 30, py - 30, pw + 60, ph + 60);
+    ctx.strokeStyle = 'rgba(192,160,98,0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px - 30, py - 30, pw + 60, ph + 60);
+  } else {
+    ctx.strokeStyle = '#3f5233';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px - 12, py - 12, pw + 24, ph + 24);
+  }
+
+  const msg = ($('#cardMsg')?.value || '').trim() || 'ขอบคุณที่ร่วมเป็นส่วนหนึ่งในวันสำคัญของเรา';
+  ctx.fillStyle = '#3f5233';
+  ctx.font = '400 40px "Sarabun", "Noto Sans Thai", sans-serif';
+  wrapText(ctx, msg, W / 2, 1330, W - 340, 58);
+
+  const who = ($('#cardName')?.value || '').trim();
+  if (who) {
+    ctx.fillStyle = '#6b7a5e';
+    ctx.font = '600 34px "Sarabun", "Noto Sans Thai", sans-serif';
+    ctx.fillText(`— ${who}`, W / 2, 1470);
+  }
+
+  ctx.fillStyle = '#c0a062';
+  ctx.font = '400 22px "Cormorant Garamond", Georgia, serif';
+  ctx.fillText('T H E   W E D D I N G   C O L L E C T I O N', W / 2, H - 110);
+}
+
+function drawCard() {
+  const cv = $('#cardCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  if (ctx) paintCard(ctx);
+}
+
+function renderCardFrames() {
+  const box = $('#cardFrames');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const f of CARD_FRAMES) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'swatch';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', String(card.frame === f.id));
+    btn.title = f.name;
+    const mini = document.createElement('span');
+    mini.className = 'tile';
+    mini.setAttribute('aria-hidden', 'true');
+    mini.style.background =
+      f.id === 'gold' ? '#c9a86a' : f.id === 'stamp' ? '#d9cbb0' : '#8a9a7b';
+    btn.appendChild(mini);
+    btn.addEventListener('click', () => {
+      card.frame = f.id;
+      renderCardFrames();
+      drawCard();
+      toast(`การ์ด: ${f.name}`);
+    });
+    box.appendChild(btn);
+  }
+}
+
+async function pickCardFromAlbum() {
+  if (!state.items.length) await loadMore();
+  const photos = state.items.filter((i) => i.type === 'photo').slice(0, 6);
+  if (!photos.length) return toast('ยังไม่มีรูปในอัลบั้ม');
+
+  let row = $('#cardPicker');
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'cardPicker';
+    row.className = 'cardPicker';
+    $('.cardPick')?.after(row);
+  }
+  row.innerHTML = '';
+  for (const it of photos) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cardPickItem';
+    const img = document.createElement('img');
+    img.src = it._src || it.thumb || it.url;
+    img.alt = '';
+    btn.appendChild(img);
+    btn.addEventListener('click', async () => {
+      try {
+        card.img = await cardImage(it.url);
+        drawCard();
+        row.remove();
+        toast('ใส่รูปในการ์ดแล้ว');
+      } catch {
+        toast('โหลดรูปไม่สำเร็จ');
+      }
+    });
+    row.appendChild(btn);
+  }
+}
+
+function downloadCard() {
+  const cv = $('#cardCanvas');
+  if (!cv) return;
+  if (!card.img) return toast('เลือกรูปก่อนดาวน์โหลด');
+  cv.toBlob((blob) => {
+    if (blob) saveBlob(blob, `thank-you-${Date.now()}.png`);
+  }, 'image/png');
+}
+
+function bindCard() {
+  renderCardFrames();
+  drawCard();
+  $('#cardPickAlbum')?.addEventListener('click', () => pickCardFromAlbum());
+  $('#cardFile')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    try {
+      card.img = await cardImage(url);
+      drawCard();
+      toast('ใส่รูปในการ์ดแล้ว');
+    } catch {
+      toast('เปิดรูปนี้ไม่ได้');
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      e.target.value = '';
+    }
+  });
+  $('#cardName')?.addEventListener('input', drawCard);
+  $('#cardMsg')?.addEventListener('input', drawCard);
+  $('#cardDownload')?.addEventListener('click', downloadCard);
+}
+
+bindCard();
 
 boot();

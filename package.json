@@ -23,7 +23,9 @@
     "test:prod": "python scripts/prod_test.py",
     "test:ui:prod": "node scripts/ui_test.mjs",
     "demo": "node scripts/demo_seed.mjs 8",
-    "shot": "node scripts/shot.mjs"
+    "shot": "node scripts/shot.mjs",
+    "test:card": "node scripts/card_test.mjs",
+    "test:all": "node --test tests/lib.test.mjs tests/util.test.mjs && python scripts/page_test.py --base ${BASE_URL} && node scripts/card_test.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.50.0",

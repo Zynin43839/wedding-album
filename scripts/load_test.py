@@ -5,6 +5,7 @@ throughput / failure rate plus the final object count from /api/list.
 
 Run: python scripts/load_test.py [guests] [photos_per_guest]
 """
+import os
 import base64
 import json
 import random
@@ -16,7 +17,7 @@ import urllib.parse
 import urllib.request
 
 BASE = "http://127.0.0.1:8787"
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 
 GUESTS = int(sys.argv[1]) if len(sys.argv) > 1 else 40
 PER_GUEST = int(sys.argv[2]) if len(sys.argv) > 2 else 3

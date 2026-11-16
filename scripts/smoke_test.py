@@ -2,6 +2,7 @@
 
 Usage: python scripts/smoke_test.py [base_url]
 """
+import os
 import base64
 import json
 import sys
@@ -10,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8787"
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 
 JPEG = base64.b64decode(
     "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a"

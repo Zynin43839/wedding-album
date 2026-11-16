@@ -16,12 +16,14 @@ Usage
 """
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 import urllib.parse
 import urllib.request
 
-CODE = "demo-code"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
 UA = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0"}
 
 

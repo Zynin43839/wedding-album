@@ -44,6 +44,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="shoot" role="tab">ถ่ายรูป</button>
     <button class="tab" data-tab="album" role="tab">ภาพความทรงจำ</button>
+    <button class="tab" data-tab="card" role="tab">การ์ดขอบคุณ</button>
   </nav>
 </div>
 
@@ -189,6 +190,47 @@
       </div>
       <div class="progress"><div id="zipBar" class="progressFill"></div></div>
       <p id="zipMsg" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- ─────────── thank-you card ─────────── -->
+  <section id="tab-card" class="pane" hidden>
+    <div class="pageHead">
+      <h2>การ์ดขอบคุณ</h2>
+      <span class="count">A5 · PNG</span>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <span>เลือกรูป</span>
+        <div class="cardPick">
+          <button id="cardPickAlbum" type="button" class="btn sm">ใช้รูปจากอัลบั้ม</button>
+          <label class="btn sm" for="cardFile">เลือกรูปจากเครื่อง</label>
+          <input id="cardFile" type="file" accept="image/*" hidden>
+        </div>
+        <p class="hint">รูปทั้งหมดจะถูกวาดในเครื่องคุณ — ไม่มีการอัปโหลดและไม่ใช้โควตาเพิ่ม</p>
+      </div>
+
+      <label class="field">
+        <span>ชื่อแขก (พิมพ์บนการ์ด)</span>
+        <input id="cardName" type="text" maxlength="40" placeholder="เช่น คุณสมชาย / พี่แอน">
+      </label>
+
+      <label class="field">
+        <span>ข้อความขอบคุณ</span>
+        <input id="cardMsg" type="text" maxlength="80" placeholder="ขอบคุณที่มาร่วมเป็นส่วนหนึ่งในวันสำคัญของเรา">
+      </label>
+
+      <div class="field">
+        <span>รูปแบบการ์ด</span>
+        <div id="cardFrames" class="swatches" role="radiogroup" aria-label="รูปแบบการ์ด"></div>
+      </div>
+
+      <div class="cardPreview">
+        <canvas id="cardCanvas" width="1240" height="1748" aria-label="ตัวอย่างการ์ด"></canvas>
+      </div>
+
+      <button id="cardDownload" type="button" class="btn primary">ดาวน์โหลดการ์ด</button>
     </div>
   </section>
 
