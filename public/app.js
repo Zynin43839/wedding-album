@@ -1932,4 +1932,12 @@ function bindCard() {
 
 bindCard();
 
+// Cache Storage survives the browser evicting its HTTP cache, which is what
+// makes a second visit free on iOS. Skipped inside LINE's in-app browser: it
+// has a partial service-worker implementation, and a broken worker would be
+// worse than no worker.
+if ('serviceWorker' in navigator && !/\bLine\//i.test(navigator.userAgent)) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
 boot();

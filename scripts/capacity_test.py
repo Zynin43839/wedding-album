@@ -1,253 +1,214 @@
 #!/usr/bin/env python3
-"""Capacity / rate-limit test for the album.
+"""Capacity rehearsal: 650 guests x 10 uploads, paced, with a hard machine budget.
 
-Answers three questions with numbers instead of guesses:
-  1. how many uploads can hit the Worker at the same time before anything breaks
-  2. how fast a photo comes back while that is happening (p50 / p95 / max)
-  3. what the failure looks like when a limit is hit (status, Cloudflare body)
+Why it is shaped like this
+--------------------------
+650 guests x 10 files = 6,500 files = 13,000 Worker requests. Cloudflare counts
+requests, not bytes, so the rehearsal uses small files (60 KB) and paces them at
+a rate the venue's aggregate traffic would produce (~25 req/s). That measures the
+platform without needing 4.6 GB of uplink or a second machine.
 
-Usage
------
-  python scripts/capacity_test.py --base http://127.0.0.1:8787 --mode upload --concurrency 1 5 10 20 40
-  python scripts/capacity_test.py --base https://... --mode view --concurrency 50 --count 200
-  python scripts/capacity_test.py --base https://... --mode mixed --concurrency 20
+Machine safety (the laptop must stay usable):
+  * one Python process, N worker threads (default 20), no subprocesses
+  * token-bucket rate limit (default 25 requests/s)
+  * abort after 5 consecutive failures, or if RSS exceeds 400 MB
+  * progress every 250 requests, chunked runs so a shell timeout cannot orphan work
 
-Every object it writes uses guest `LOADTEST` and is left in place; clean with
-  python scripts/clean_album.py --guest LOADTEST
+Run in chunks:
+  python scripts/capacity_test.py --guests 216 --start 0
+  python scripts/capacity_test.py --guests 217 --start 216
+  ...
+  python scripts/capacity_test.py --summary
 """
 from __future__ import annotations
 
 import argparse
 import json
-import statistics
-import sys
+import os
+import pathlib
 import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from io import BytesIO
 
-from PIL import Image
+BASE = "https://wedding-album.rj-wedding.workers.dev"
+CODE = os.environ.get("EVENT_CODE", "demo-code")
+TOKEN = (pathlib.Path(os.environ["TEMP"]) / "opencode" / "purge_token.txt").read_text().strip()
+STATE = pathlib.Path(os.environ["TEMP"]) / "opencode" / "capacity_state.json"
+UA = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0"}
 
-CODE_DEFAULT = "demo-code"
-GUEST = "LOADTEST"
-# full browser UA: Cloudflare's managed rules answer 403 (error 1010) to clients
-# whose User-Agent does not look like a browser
-HDRS = {
-    "user-agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+lock = threading.Lock()
+stats = {"ok": 0, "fail": 0, "lat": [], "errors": {}, "consecutive_fail": 0, "aborted": False}
+START = time.perf_counter()
+
+
+def rss_mb() -> float:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PMC(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        pmc = PMC()
+        pmc.cb = ctypes.sizeof(PMC)
+        ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb)
+        return pmc.WorkingSetSize / 1048576
+    except Exception:
+        return 0.0
+
+
+class Bucket:
+    """Simple token bucket so the whole run stays under --rate requests/second."""
+
+    def __init__(self, rate: float, burst: float):
+        self.rate = rate
+        self.capacity = burst
+        self.tokens = burst
+        self.ts = time.perf_counter()
+        self.lock = threading.Lock()
+
+    def take(self):
+        while True:
+            with self.lock:
+                now = time.perf_counter()
+                self.tokens = min(self.capacity, self.tokens + (now - self.ts) * self.rate)
+                self.ts = now
+                if self.tokens >= 1:
+                    self.tokens -= 1
+                    return
+                wait = (1 - self.tokens) / self.rate
+            time.sleep(min(wait, 0.2))
+
+
+def post(path: str, data: bytes, ctype: str) -> tuple[int, float, str]:
+    req = urllib.request.Request(
+        BASE + path, data=data, method="POST", headers={**UA, "content-type": ctype}
     )
-}
-
-
-def make_jpeg(kb: int) -> bytes:
-    """A noise JPEG of roughly `kb` kilobytes.
-
-    Noise on purpose: a flat image compresses to ~180 KB even at quality 92,
-    which would understate the bandwidth a real photo uses. Sizing the canvas
-    from the requested size lets the same script test a 5 KB thumbnail and an
-    850 KB photo.
-    """
-    import math
-    import random
-
-    rnd = random.Random(7)
-    side = max(32, min(1400, int(math.sqrt(kb * 1024 / 0.55))))
-    im = Image.new("RGB", (side, side))
-    px = im.load()
-    for y in range(side):
-        for x in range(side):
-            px[x, y] = (rnd.randrange(256), rnd.randrange(256), rnd.randrange(256))
-    buf = BytesIO()
-    im.save(buf, "JPEG", quality=88)
-    return buf.getvalue()
-
-
-def post(url: str, body: bytes, ctype: str, timeout: float = 90):
-    req = urllib.request.Request(url, data=body, method="POST", headers={**HDRS, "content-type": ctype})
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(req, timeout=60) as r:
             r.read()
             return r.status, time.perf_counter() - t0, ""
     except urllib.error.HTTPError as e:
-        body_txt = ""
-        try:
-            body_txt = e.read()[:200].decode("utf-8", "replace")
-        except Exception:
-            pass
-        return e.code, time.perf_counter() - t0, body_txt
+        return e.code, time.perf_counter() - t0, f"http{e.code}"
     except Exception as e:  # noqa: BLE001
-        return 0, time.perf_counter() - t0, f"{type(e).__name__}: {e}"
+        return 0, time.perf_counter() - t0, type(e).__name__
 
 
-def get(url: str, timeout: float = 90):
-    t0 = time.perf_counter()
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=HDRS), timeout=timeout) as r:
-            body = r.read()
-            return r.status, time.perf_counter() - t0, len(body)
-    except urllib.error.HTTPError as e:
-        return e.code, time.perf_counter() - t0, 0
-    except Exception:  # noqa: BLE001
-        return 0, time.perf_counter() - t0, 0
-
-
-class Run:
-    def __init__(self, label: str):
-        self.label = label
-        self.lock = threading.Lock()
-        self.lat: list[float] = []
-        self.codes: dict[int, int] = {}
-        self.errors: dict[str, int] = {}
-        self.bytes = 0
-
-    def add(self, status: int, dt: float, err: str = "", nbytes: int = 0):
-        with self.lock:
-            self.lat.append(dt)
-            self.codes[status] = self.codes.get(status, 0) + 1
-            self.bytes += nbytes
-            if err:
-                key = f"{status} {err[:90]}"
-                self.errors[key] = self.errors.get(key, 0) + 1
-
-    def report(self) -> dict:
-        lat = sorted(self.lat)
-        n = len(lat) or 1
-
-        def pct(p):
-            return lat[min(n - 1, int(n * p))] * 1000
-
-        ok = sum(v for k, v in self.codes.items() if 200 <= k < 300)
-        return {
-            "label": self.label,
-            "requests": len(lat),
-            "ok": ok,
-            "fail": len(lat) - ok,
-            "p50_ms": pct(0.50),
-            "p95_ms": pct(0.95),
-            "max_ms": lat[-1] * 1000 if lat else 0,
-            "bytes": self.bytes,
-            "codes": dict(sorted(self.codes.items())),
-            "errors": self.errors,
-        }
-
-
-def run_concurrent(label: str, concurrency: int, total: int, fn) -> Run:
-    r = Run(label)
-    lock = threading.Lock()
-    counter = {"i": 0}
-
-    def worker():
-        while True:
-            with lock:
-                if counter["i"] >= total:
-                    return
-                counter["i"] += 1
-                idx = counter["i"]
-            status, dt, err, nbytes = fn(idx)
-            r.add(status, dt, err, nbytes)
-
-    threads = [threading.Thread(target=worker) for _ in range(min(concurrency, total))]
-    t0 = time.time()
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    r.wall = time.time() - t0
-    return r
+def one_file(bucket: Bucket, guest: int, idx: int, size: int) -> None:
+    ident = f"cap{guest:03d}-{idx:02d}"
+    for kind, nbytes, ctype in (("photo", size, "image/jpeg"), ("thumb", 12 * 1024, "image/jpeg")):
+        if stats["aborted"]:
+            return
+        bucket.take()
+        q = urllib.parse.urlencode({"e": CODE, "kind": kind, "id": ident, "name": f"LOADTEST-{guest:03d}", "ext": "jpg"})
+        st, dt, err = post(f"/api/upload?{q}", os.urandom(nbytes), ctype)
+        with lock:
+            stats["lat"].append(dt)
+            if st == 200:
+                stats["ok"] += 1
+                stats["consecutive_fail"] = 0
+            else:
+                stats["fail"] += 1
+                stats["consecutive_fail"] += 1
+                key = err or f"status{st}"
+                stats["errors"][key] = stats["errors"].get(key, 0) + 1
+                if stats["consecutive_fail"] >= 5:
+                    stats["aborted"] = True
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", required=True)
-    ap.add_argument("--code", default=CODE_DEFAULT)
-    ap.add_argument("--mode", choices=["upload", "view", "mixed"], default="upload")
-    ap.add_argument("--concurrency", type=int, nargs="+", default=[1, 5, 10, 20, 40])
-    ap.add_argument("--count", type=int, default=0, help="requests per stage (default 4x concurrency)")
-    ap.add_argument("--kb", type=int, default=900)
-    ap.add_argument("--json", default="", help="write the raw results here")
+    ap.add_argument("--guests", type=int, default=216)
+    ap.add_argument("--start", type=int, default=0)
+    ap.add_argument("--files", type=int, default=10)
+    ap.add_argument("--size-kb", type=int, default=60)
+    ap.add_argument("--concurrency", type=int, default=20)
+    ap.add_argument("--rate", type=float, default=25.0)
+    ap.add_argument("--summary", action="store_true")
     args = ap.parse_args()
 
-    base = args.base.rstrip("/")
-    payload = make_jpeg(args.kb)
-    print(f"base    : {base}")
-    print(f"payload : {len(payload) / 1024:.0f} KB per photo")
-    print(f"mode    : {args.mode}")
-
-    results = []
-
-    if args.mode in ("view", "mixed"):
-        req = urllib.request.Request(f"{base}/api/list?e={args.code}", headers=HDRS)
-        with urllib.request.urlopen(req, timeout=60) as r:
-            items = json.load(r)["items"]
-        if not items:
-            print("album is empty — upload something first")
+    if args.summary:
+        if not STATE.exists():
+            print("no state yet")
             return 1
-        media = [i["url"] if i["url"].startswith("http") else base + i["url"] for i in items]
-        print(f"media   : {len(media)} objects available")
+        s = json.loads(STATE.read_text())
+        print(json.dumps(s, indent=2))
+        return 0
 
-    for c in args.concurrency:
-        total = args.count or c * 4
+    bucket = Bucket(args.rate, burst=max(4, args.concurrency))
+    print(
+        f"chunk guests {args.start}..{args.start + args.guests - 1} · {args.files} files each · "
+        f"{args.size_kb} KB · concurrency {args.concurrency} · rate {args.rate}/s"
+    )
 
-        if args.mode == "upload":
-            def job(i, c=c):
-                pid = f"load{int(time.time() * 1000)}-{i:04d}"
-                q = urllib.parse.urlencode({"e": args.code, "id": pid, "kind": "photo", "ext": "jpg", "name": GUEST})
-                st, dt, err = post(f"{base}/api/upload?{q}", payload, "image/jpeg")
-                return st, dt, err, len(payload)
+    queue = [(g, f) for g in range(args.start, args.start + args.guests) for f in range(args.files)]
+    cursor = {"i": 0}
+    progress = {"last": 0}
 
-            run = run_concurrent(f"upload c={c}", c, total, job)
+    def worker():
+        while True:
+            with lock:
+                if cursor["i"] >= len(queue) or stats["aborted"]:
+                    return
+                g, f = queue[cursor["i"]]
+                cursor["i"] += 1
+            one_file(bucket, g, f, args.size_kb * 1024)
+            with lock:
+                done = stats["ok"] + stats["fail"]
+                if done - progress["last"] >= 250:
+                    progress["last"] = done
+                    el = time.perf_counter() - START
+                    print(
+                        f"  {done}/{len(queue)*2} requests · {done/el:.1f}/s · "
+                        f"fail {stats['fail']} · RSS {rss_mb():.0f} MB",
+                        flush=True,
+                    )
+                if rss_mb() > 400:
+                    stats["aborted"] = True
+                    print("  ABORT: RSS over 400 MB", flush=True)
 
-        elif args.mode == "view":
-            def job(i):
-                url = media[i % len(media)]
-                st, dt, n = get(url)
-                return st, dt, "", n
+    threads = [threading.Thread(target=worker) for _ in range(args.concurrency)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
 
-            run = run_concurrent(f"view c={c}", c, total, job)
+    el = time.perf_counter() - START
+    lat = sorted(stats["lat"])
+    p50 = lat[len(lat) // 2] if lat else 0
+    p95 = lat[int(len(lat) * 0.95) - 1] if lat else 0
+    summary = {
+        "chunk": [args.start, args.start + args.guests - 1],
+        "requests_ok": stats["ok"],
+        "requests_fail": stats["fail"],
+        "seconds": round(el, 1),
+        "req_per_s": round((stats["ok"] + stats["fail"]) / el, 2) if el else 0,
+        "p50_s": round(p50, 2),
+        "p95_s": round(p95, 2),
+        "errors": stats["errors"],
+        "aborted": stats["aborted"],
+    }
+    print(json.dumps(summary, indent=2))
 
-        else:  # mixed: one uploader + viewers
-            def job(i):
-                if i % 3 == 0:
-                    pid = f"load{int(time.time() * 1000)}-{i:04d}"
-                    q = urllib.parse.urlencode({"e": args.code, "id": pid, "kind": "photo", "ext": "jpg", "name": GUEST})
-                    st, dt, err = post(f"{base}/api/upload?{q}", payload, "image/jpeg")
-                    return st, dt, err, len(payload)
-                url = media[i % len(media)]
-                st, dt, n = get(url)
-                return st, dt, "", n
-
-            run = run_concurrent(f"mixed c={c}", c, total, job)
-
-        rep = run.report()
-        rep["concurrency"] = c
-        rep["wall_s"] = run.wall
-        rep["rps"] = (rep["requests"] / run.wall) if run.wall else 0
-        results.append(rep)
-
-        print()
-        print(f"--- {rep['label']}  ({rep['requests']} requests, {rep['rps']:.1f} req/s wall) ---")
-        print(f"  ok/fail : {rep['ok']}/{rep['requests']}   codes={rep['codes']}")
-        print(f"  latency : p50={rep['p50_ms']:.0f} ms  p95={rep['p95_ms']:.0f} ms  max={rep['max_ms']:.0f} ms")
-        print(f"  data    : {rep['bytes'] / 1024 / 1024:.1f} MB")
-        if rep["errors"]:
-            print("  errors  :")
-            for k, v in list(rep["errors"].items())[:5]:
-                print(f"    {v}x {k}")
-
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
-        print(f"\nraw results -> {args.json}")
-
-    bad = [r for r in results if r["fail"]]
-    print()
-    print("RESULT:", "PASS — no failed request" if not bad else f"{len(bad)} stage(s) had failures")
-    return 0 if not bad else 1
+    prev = json.loads(STATE.read_text()) if STATE.exists() else {"chunks": []}
+    prev["chunks"].append(summary)
+    STATE.write_text(json.dumps(prev, indent=2))
+    return 0 if stats["fail"] == 0 else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
