@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 8787",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy -c wrangler.prod.toml",
     "tail": "wrangler tail",
     "bucket:create": "wrangler r2 bucket create wedding-album-media",
     "test:smoke": "python scripts/smoke_test.py",
@@ -25,7 +25,8 @@
     "demo": "node scripts/demo_seed.mjs 8",
     "shot": "node scripts/shot.mjs",
     "test:card": "node scripts/card_test.mjs",
-    "test:all": "node --test tests/lib.test.mjs tests/util.test.mjs && python scripts/page_test.py --base ${BASE_URL} && node scripts/card_test.mjs"
+    "test:all": "node --test tests/lib.test.mjs tests/util.test.mjs && python scripts/page_test.py --base ${BASE_URL} && node scripts/card_test.mjs",
+    "deploy:demo": "wrangler deploy"
   },
   "devDependencies": {
     "playwright-core": "^1.50.0",
