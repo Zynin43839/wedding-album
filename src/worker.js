@@ -50,7 +50,9 @@ export default {
   async scheduled(event, env, ctx) {
     if (!env.DRIVE_FOLDER_ID || !env.GOOGLE_REFRESH_TOKEN) return;
     ctx.waitUntil(
-      withSyncLock(env, () => syncBatch(env, Number(env.SYNC_BATCH) || 200)).catch(() => {})
+      withSyncLock(env, () =>
+        syncBatch(env, Math.min(Number(env.SYNC_BATCH) || SYNC_MAX_PER_RUN, SYNC_MAX_PER_RUN))
+      ).catch(() => {})
     );
   },
 };
@@ -405,7 +407,10 @@ async function handleSync(request, env, url) {
     return json({ error: 'drive_folder_missing' }, 503);
   }
 
-  const limit = Math.max(1, Math.min(400, Number(url.searchParams.get('limit')) || 25));
+  const limit = Math.max(
+    1,
+    Math.min(SYNC_MAX_PER_RUN, Number(url.searchParams.get('limit')) || SYNC_MAX_PER_RUN)
+  );
   try {
     if (url.searchParams.get('failed') === '1') {
       const obj = await env.BUCKET.get('state/last-failed.json');
@@ -699,6 +704,10 @@ async function handleList(env, url) {
 // cold-start outlier, and a plain /api/list already costs ~4 ms. 8 keeps the
 // ceiling out of reach while still turning a 15-photo page (15 requests)
 // into 2.
+// One archived object costs 2 fetches and the free plan allows 50 fetches per
+// invocation (measured) plus one token fetch, so 24 is the ceiling per run:
+// what SYNC_BATCH or ?limit says.
+const SYNC_MAX_PER_RUN = 24;
 const BUNDLE_MAX = 8;
 // CPU is spent per byte sent, not per item: ~1 ms per 90 KB measured.
 // These two constants are the guard rail that keeps one invocation inside
