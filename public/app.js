@@ -70,6 +70,7 @@ async function loadConfig() {
     if (!r.ok) {
       toast('ลิงก์ไม่ถูกต้อง หรือรหัสห้องไม่ถูก');
       $('#eventSub').textContent = 'ตรวจสอบลิงก์ที่ได้รับจากเจ้าภาพอีกครั้ง';
+      lockActions();
       return;
     }
     state.cfg = await r.json();
@@ -86,7 +87,20 @@ function setExpired() {
   state.expired = true;
   $('#eventSub').textContent = 'อัลบั้มนี้ปิดรับชมแล้ว';
   toast('อัลบั้มนี้ปิดรับชมแล้ว');
+  lockActions();
+}
+
+/**
+ * Freeze the shooting controls when uploading cannot work (expired album, wrong
+ * link). Leaving them tappable is worse than hiding them: the guest picks a
+ * photo, waits, and only then learns it will never be accepted.
+ */
+function lockActions() {
+  const actions = document.querySelector('.actions');
+  if (actions) actions.classList.add('isLocked');
   document.querySelectorAll('.btn input').forEach((i) => (i.disabled = true));
+  const rec = document.getElementById('recBtn');
+  if (rec) rec.disabled = true;
 }
 
 
@@ -666,7 +680,10 @@ function pump() {
 async function updatePendingBanner() {
   const bar = $('#pendingBanner');
   if (!bar) return;
-  const unsent = state.queue.filter((i) => i.status === 'wait' || i.status === 'fail').length;
+  // a permanently refused file is no longer waiting for anything
+  const unsent = state.queue.filter(
+    (i) => (i.status === 'wait' || i.status === 'fail') && !i.permanent
+  ).length;
   let stored = { files: 0, bytes: 0 };
   try {
     stored = await queueStats();

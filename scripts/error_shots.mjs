@@ -122,7 +122,7 @@ function newCtx() {
   await ctx.grantPermissions([]);
   const page = await ctx.newPage();
   await page.goto(`${ORIGIN}/?e=${CODE}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('#recordBtn, [data-rec], #recStart').first().click({ force: true }).catch(() => {});
+  await page.locator('#recBtn').click({ force: true }).catch(() => {});
   await page.waitForTimeout(2500);
   await shot(page, '06-camera-denied', 'กล้องถูกปฏิเสธ: แนะนำให้ใช้ "วิดีโอจากคลัง"');
   await ctx.close();

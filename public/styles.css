@@ -1377,3 +1377,7 @@ input[type="text"]:focus {
 }
 #pendingText { flex: 1 1 auto; }
 .btn.xs { padding: 4px 10px; font-size: 0.8rem; }
+
+/* shooting controls frozen when uploading cannot work */
+.actions.isLocked { opacity: 0.45; pointer-events: none; filter: grayscale(0.4); }
+
