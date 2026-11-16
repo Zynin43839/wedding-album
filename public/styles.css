@@ -1358,3 +1358,19 @@ input[type="text"]:focus {
   border-radius: 14px; background: #fbf8f3;
   box-shadow: 0 12px 30px rgba(63, 82, 51, 0.16);
 }
+
+/* ─────────── pending-upload banner ─────────── */
+.pendingBanner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 auto 10px; max-width: 720px; padding: 10px 14px;
+  background: #fff8e8; border: 1px solid rgba(192, 160, 98, 0.55);
+  border-radius: 12px; font-size: 0.88rem; color: var(--ink);
+  box-shadow: 0 6px 18px rgba(63, 82, 51, 0.10);
+}
+.pendingBanner[hidden] { display: none; }
+.pendingDot {
+  width: 9px; height: 9px; border-radius: 50%; background: #c8873f;
+  box-shadow: 0 0 0 4px rgba(200, 135, 63, 0.18); flex: 0 0 auto;
+}
+#pendingText { flex: 1 1 auto; }
+.btn.xs { padding: 4px 10px; font-size: 0.8rem; }

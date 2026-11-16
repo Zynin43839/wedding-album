@@ -26,7 +26,11 @@
     "shot": "node scripts/shot.mjs",
     "test:card": "node scripts/card_test.mjs",
     "test:all": "node --test tests/lib.test.mjs tests/util.test.mjs && python scripts/page_test.py --base ${BASE_URL} && node scripts/card_test.mjs",
-    "deploy:demo": "wrangler deploy"
+    "deploy:demo": "wrangler deploy",
+    "test:queue": "node scripts/queue_persist_test.mjs",
+    "test:lock": "python scripts/lock_test.py",
+    "test:sw": "node scripts/sw_test.mjs",
+    "test:cap": "python scripts/batch_cap_test.py"
   },
   "devDependencies": {
     "playwright-core": "^1.50.0",

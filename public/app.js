@@ -3,6 +3,13 @@ import {
   MB, TH_DAYS, TH_MONTHS, VIDEO_EXT_RE,
   shortDate, longDate, hashOf, kindOf, extOf, safeName, human, fmtTime, keyFromUrl,
 } from '/util.js';
+import {
+  put as queuePut,
+  remove as queueRemove,
+  list as queueList,
+  clear as queueClear,
+  stats as queueStats,
+} from '/queue.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -50,6 +57,8 @@ async function boot() {
 
   bindUi();
   await loadConfig();
+  bindPendingBanner();
+  await restoreQueue();
   // The album itself is loaded when the guest opens its tab: a guest who only
   // shoots should not pay for a list call and 15 thumbnails they never see.
 }
@@ -149,6 +158,34 @@ function toast(msg, ms = 3200) {
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.hidden = true), ms);
+}
+
+/**
+ * Turn a failed upload into something a guest can act on.
+ *
+ * `retry` decides whether the queue tries again: a dropped connection or a
+ * server hiccup is worth retrying, a file the server will always refuse is not
+ * (retrying it three times just delays the real message).
+ */
+function explainError(err) {
+  const code = String((err && (err.code || err.message)) || 'unknown');
+  const status = Number((err && err.status) || 0);
+  const table = {
+    network: { text: 'สัญญาณไม่ดี — รูปยังอยู่ในเครื่องคุณ', retry: true, tag: 'E-NET' },
+    timeout: { text: 'ส่งไม่ทันเวลา — ลองอีกครั้ง', retry: true, tag: 'E-TIME' },
+    too_large: { text: 'ไฟล์ใหญ่เกินกว่าที่ระบบรับได้', retry: false, tag: 'E-413' },
+    bad_type: { text: 'เครื่องนี้ส่งไฟล์ชนิดนี้ไม่ได้', retry: false, tag: 'E-415' },
+    bad_id: { text: 'เกิดข้อผิดพลาดกับชื่อไฟล์ — ลองถ่ายใหม่', retry: false, tag: 'E-400' },
+    bad_code: { text: 'ลิงก์ไม่ถูกต้อง — ขอ QR จากเจ้าภาพ', retry: false, tag: 'E-403' },
+    expired: { text: 'อัลบั้มปิดรับชมแล้ว', retry: false, tag: 'E-410' },
+    length_required: { text: 'ส่งไฟล์ไม่ครบ — ลองอีกครั้ง', retry: true, tag: 'E-411' },
+    quota: { text: 'อัลบั้มเต็มสำหรับวันนี้ — กลับมาได้หลัง 07:00 น.', retry: false, tag: 'E-429' },
+  };
+  if (table[code]) return { code, ...table[code] };
+  if (status === 429 || status === 503) return { code, ...table.quota };
+  if (status >= 500) return { code, text: 'เซิร์ฟเวอร์ขัดข้อง — ลองอีกครั้ง', retry: true, tag: 'E-5XX' };
+  if (code === 'conflict') return { code, text: '', retry: false, tag: 'E-409', duplicate: true };
+  return { code, text: 'ส่งไม่สำเร็จ — ลองอีกครั้ง', retry: true, tag: 'E-000' };
 }
 
 const FRAMES = [
@@ -619,8 +656,110 @@ function pump() {
     if (!next) break;
     runUpload(next);
   }
-  const failed = state.queue.some((i) => i.status === 'fail');
+  const failed = state.queue.some((i) => i.status === 'fail' && !i.permanent);
   $('#retryAll').hidden = !failed;
+}
+
+/* ─────────────────── durable queue (survives a closed tab) ─────────────────── */
+
+/** Banner + tab title so a guest knows files are still waiting. */
+async function updatePendingBanner() {
+  const bar = $('#pendingBanner');
+  if (!bar) return;
+  const unsent = state.queue.filter((i) => i.status === 'wait' || i.status === 'fail').length;
+  let stored = { files: 0, bytes: 0 };
+  try {
+    stored = await queueStats();
+  } catch {
+    stored = { files: 0, bytes: 0 };
+  }
+  const files = Math.max(unsent, stored.files);
+
+  if (!files) {
+    bar.hidden = true;
+    document.title = document.title.replace(/^\(\d+\)\s*/, '');
+    return;
+  }
+
+  const mb = stored.bytes ? ` (${(stored.bytes / 1048576).toFixed(1)} MB)` : '';
+  $('#pendingText').textContent = `มี ${files} ไฟล์รอส่ง${mb}`;
+  bar.hidden = false;
+  document.title = `(${files}) ภาพความทรงจำ`;
+}
+
+/** Re-add whatever was still queued when the tab was closed. */
+async function restoreQueue() {
+  let rows = [];
+  try {
+    rows = await queueList();
+  } catch {
+    return;
+  }
+  if (!rows.length) return;
+
+  const now = Date.now();
+  let restored = 0;
+  for (const row of rows) {
+    if (now - row.ts > 24 * 60 * 60 * 1000) {
+      await queueRemove(row.id);
+      continue;
+    }
+    if (state.queue.some((q) => q.id === row.id)) continue;
+    const file = new File([row.blob], row.name || `${row.id}.jpg`, {
+      type: row.type || 'image/jpeg',
+    });
+    const item = {
+      id: row.id,
+      file,
+      guest: row.guest || state.guest || 'Guest',
+      kind: row.kind || 'photo',
+      frame: row.frame || '',
+      status: 'wait',
+      tries: 0,
+      restored: true,
+    };
+    state.queue.push(item);
+    renderQueueItem(item);
+    restored += 1;
+  }
+
+  if (restored) {
+    $('#queueWrap').hidden = false;
+    toast(`กู้คืน ${restored} ไฟล์ที่ยังไม่ได้ส่ง`, 5000);
+    pump();
+  }
+  updatePendingBanner();
+}
+
+function bindPendingBanner() {
+  $('#pendingRetry')?.addEventListener('click', () => {
+    for (const item of state.queue) {
+      if (item.status === 'fail') {
+        item.status = 'wait';
+        item.tries = 0;
+        setItemState(item, 'รอส่ง…', 0);
+      }
+    }
+    pump();
+    toast('กำลังลองส่งอีกครั้ง');
+  });
+
+  $('#pendingClear')?.addEventListener('click', async () => {
+    if (!confirm('ลบไฟล์ที่ยังไม่ได้ส่งออกจากเครื่องนี้?')) return;
+    await queueClear();
+    state.queue = state.queue.filter((i) => i.status === 'done' || i.status === 'busy');
+    $('#queue').innerHTML = '';
+    for (const item of state.queue) renderQueueItem(item);
+    updatePendingBanner();
+  });
+
+  // closing the tab with unsent files is the one action that loses them
+  window.addEventListener('beforeunload', (e) => {
+    const unsent = state.queue.some((i) => i.status === 'wait' || i.status === 'fail');
+    if (!unsent) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 }
 
 async function runUpload(item) {
@@ -633,21 +772,66 @@ async function runUpload(item) {
     const prepared =
       item.kind === 'video' ? await prepVideo(item.file) : await prepPhoto(item.file);
 
+    // Persist BEFORE the network call: if the tab dies mid-upload the file is
+    // still here on the next visit. Storing the original file means a restore
+    // simply runs the same pipeline again.
+    item.persisted = await queuePut({
+      id: item.id,
+      file: item.file,
+      guest: item.guest,
+      kind: item.kind,
+      frame: item.frame,
+    });
+    if (!item.persisted) {
+      console.warn('[queue] not persisted', {
+        id: item.id,
+        hasFile: Boolean(item.file),
+        size: item.file && item.file.size,
+      });
+    }
+    updatePendingBanner();
+
     setItemState(item, 'กำลังส่ง…', 0);
     await sendAll(item, prepared);
 
     item.status = 'done';
     setItemState(item, '✓ ส่งแล้ว', 1, 'ok');
+    await queueRemove(item.id);
+    updatePendingBanner();
     if (item.el?.thumb?.src) setTimeout(() => URL.revokeObjectURL(item.el.thumb.src), 5000);
   } catch (e) {
-    item.tries++;
+    const info = explainError(e);
+
+    // a duplicate id means an earlier attempt already stored this photo
+    if (info.duplicate) {
+      item.status = 'done';
+      setItemState(item, '✓ ส่งแล้ว', 1, 'ok');
+      await queueRemove(item.id);
+      updatePendingBanner();
+      return;
+    }
+
+    item.tries = info.retry ? item.tries + 1 : 3;
     item.status = item.tries >= 3 ? 'fail' : 'wait';
-    setItemState(
-      item,
-      item.status === 'fail' ? '✕ ส่งไม่สำเร็จ' : 'จะลองใหม่…',
-      0,
-      item.status === 'fail' ? 'bad' : ''
-    );
+    item.permanent = !info.retry;
+
+    if (info.retry) {
+      const exhausted = item.status === 'fail';
+      setItemState(
+        item,
+        exhausted ? `✕ ${info.text} — เก็บไว้ในเครื่อง` : `จะลองใหม่… (${item.tries}/3)`,
+        0,
+        exhausted ? 'bad' : ''
+      );
+      if (exhausted) toast('ยังส่งไม่ได้ — เก็บไฟล์ไว้ให้ลองใหม่ภายหลัง', 5000);
+      // keep it in IndexedDB: the next visit can finish the job
+    } else {
+      setItemState(item, `✕ ${info.text}`, 0, 'bad');
+      toast(`${info.text} (${info.tag})`, 5000);
+      await queueRemove(item.id);
+    }
+    item.lastError = info;
+    updatePendingBanner();
   } finally {
     state.active--;
     if (item.el?.kill) item.el.kill.disabled = false;
@@ -858,11 +1042,22 @@ function xhrPut(url, blob, type, onProgress) {
         try {
           code = JSON.parse(xhr.responseText).error || code;
         } catch {}
-        reject(new Error(code));
+        const err = new Error(code);
+        err.status = xhr.status;
+        err.code = code;
+        reject(err);
       }
     };
-    xhr.onerror = () => reject(new Error('network'));
-    xhr.ontimeout = () => reject(new Error('timeout'));
+    xhr.onerror = () => {
+      const err = new Error('network');
+      err.code = 'network';
+      reject(err);
+    };
+    xhr.ontimeout = () => {
+      const err = new Error('timeout');
+      err.code = 'timeout';
+      reject(err);
+    };
     xhr.timeout = 240000;
     xhr.send(blob);
   });
