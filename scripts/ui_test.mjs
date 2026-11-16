@@ -146,7 +146,7 @@ try {
     sub: document.querySelector('#doneSub')?.textContent?.trim(),
     warn: document.querySelector('#doneBanner')?.classList.contains('warn'),
   }));
-  step('a "sent" confirmation appears when the batch finishes', /ส่งภาพสำเร็จ/.test(done.title || '') && !done.warn, `${done.title} — ${done.sub}`);
+  step('a "sent" confirmation appears when the batch finishes', /ส่งภาพแล้ว|ส่งแล้ว/.test(done.title || '') && !done.warn, `${done.title} — ${done.sub}`);
 
   await page.screenshot({ path: path.join(shots, 'mobile-upload.png'), fullPage: true });
 

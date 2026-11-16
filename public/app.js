@@ -68,7 +68,7 @@ async function loadConfig() {
     const r = await fetch('/api/config' + q());
     if (r.status === 410) return setExpired();
     if (!r.ok) {
-      toast('ลิงก์ไม่ถูกต้อง หรือรหัสห้องไม่ถูก');
+      toast('ลิงก์นี้ยังใช้ไม่ได้ ขอ QR จากเจ้าภาพแล้วสแกนอีกครั้ง', 5000);
       $('#eventSub').textContent = 'ตรวจสอบลิงก์ที่ได้รับจากเจ้าภาพอีกครั้ง';
       lockActions();
       return;
@@ -86,7 +86,7 @@ async function loadConfig() {
 function setExpired() {
   state.expired = true;
   $('#eventSub').textContent = 'อัลบั้มนี้ปิดรับชมแล้ว';
-  toast('อัลบั้มนี้ปิดรับชมแล้ว');
+  toast('อัลบั้มปิดรับชมแล้ว ขอบคุณที่ร่วมเป็นส่วนหนึ่งในวันสำคัญของเรา', 5000);
   lockActions();
 }
 
@@ -177,29 +177,45 @@ function toast(msg, ms = 3200) {
 /**
  * Turn a failed upload into something a guest can act on.
  *
- * `retry` decides whether the queue tries again: a dropped connection or a
- * server hiccup is worth retrying, a file the server will always refuse is not
- * (retrying it three times just delays the real message).
+ * Two rules, both about the person holding the phone:
+ *   1. no jargon, no error codes — the guest cannot use them, they only worry
+ *   2. every message says what happened AND what to do next, with the system as
+ *      the subject so nobody feels blamed
+ *
+ * `retry` decides whether the queue tries again: a dropped connection is worth
+ * retrying, a file the album will always refuse is not.
  */
 function explainError(err) {
   const code = String((err && (err.code || err.message)) || 'unknown');
   const status = Number((err && err.status) || 0);
   const table = {
-    network: { text: 'สัญญาณไม่ดี รูปยังอยู่ในเครื่องคุณ', retry: true, tag: 'E-NET' },
-    timeout: { text: 'ส่งไม่ทันเวลา ลองอีกครั้ง', retry: true, tag: 'E-TIME' },
-    too_large: { text: 'ไฟล์ใหญ่เกินกว่าที่ระบบรับได้', retry: false, tag: 'E-413' },
-    bad_type: { text: 'เครื่องนี้ส่งไฟล์ชนิดนี้ไม่ได้', retry: false, tag: 'E-415' },
-    bad_id: { text: 'ชื่อไฟล์มีปัญหา ลองถ่ายใหม่', retry: false, tag: 'E-400' },
-    bad_code: { text: 'ลิงก์ไม่ถูกต้อง ขอ QR จากเจ้าภาพ', retry: false, tag: 'E-403' },
-    expired: { text: 'อัลบั้มปิดรับชมแล้ว', retry: false, tag: 'E-410' },
-    length_required: { text: 'ส่งไฟล์ไม่ครบ ลองอีกครั้ง', retry: true, tag: 'E-411' },
-    quota: { text: 'อัลบั้มเต็มสำหรับวันนี้ กลับมาใหม่หลัง 07:00 น.', retry: false, tag: 'E-429' },
+    network: {
+      text: 'ตอนนี้ส่งไม่ได้ รูปยังอยู่ในเครื่องคุณ ลองอีกครั้งเมื่อสัญญาณดีขึ้น',
+      retry: true,
+    },
+    timeout: { text: 'ส่งนานเกินไปหน่อย รูปยังอยู่กับคุณ ลองอีกครั้งนะ', retry: true },
+    too_large: {
+      text: 'รูปนี้ใหญ่เกินกว่าอัลบั้มจะรับได้ เลือกรูปอื่นหรือถ่ายใหม่ได้เลย',
+      retry: false,
+    },
+    bad_type: {
+      text: 'อัลบั้มยังเปิดไฟล์แบบนี้ไม่ได้ เลือกจากอัลบั้มรูปในเครื่องแทนได้เลย',
+      retry: false,
+    },
+    bad_id: { text: 'ชื่อไฟล์มีปัญหานิดหน่อย ลองถ่ายหรือเลือกใหม่ครั้งเดียว', retry: false },
+    bad_code: { text: 'ลิงก์นี้ยังใช้ไม่ได้ ขอ QR จากเจ้าภาพแล้วสแกนอีกครั้ง', retry: false },
+    expired: { text: 'อัลบั้มปิดรับชมแล้ว ขอบคุณที่ร่วมเป็นส่วนหนึ่งในวันสำคัญของเรา', retry: false },
+    length_required: { text: 'ไฟล์ส่งมาไม่ครบ ลองอีกครั้งได้เลย', retry: true },
+    quota: {
+      text: 'อัลบั้มรับภาพครบสำหรับวันนี้แล้ว กลับมาใหม่ได้หลัง 07:00 น.',
+      retry: false,
+    },
   };
   if (table[code]) return { code, ...table[code] };
   if (status === 429 || status === 503) return { code, ...table.quota };
-  if (status >= 500) return { code, text: 'ระบบขัดข้อง ลองอีกครั้ง', retry: true, tag: 'E-5XX' };
-  if (code === 'conflict') return { code, text: '', retry: false, tag: 'E-409', duplicate: true };
-  return { code, text: 'ส่งไม่สำเร็จ ลองอีกครั้ง', retry: true, tag: 'E-000' };
+  if (status >= 500) return { code, text: 'ระบบยังไม่พร้อมรับภาพ ลองอีกครั้งในอีกสักครู่', retry: true };
+  if (code === 'conflict') return { code, text: '', retry: false, duplicate: true };
+  return { code, text: 'ยังส่งไม่ได้ ลองอีกครั้งนะ', retry: true };
 }
 
 const FRAMES = [
@@ -243,15 +259,15 @@ function showDone(ok, failed) {
   const banner = $('#doneBanner');
   banner.classList.toggle('warn', failed > 0);
   $('#doneTitle').textContent = failed
-    ? `ส่งสำเร็จ ${ok} ไฟล์ · ไม่สำเร็จ ${failed} ไฟล์`
+    ? ok > 0
+      ? `ส่งแล้ว ${ok} ภาพ · ยังไม่ได้ส่ง ${failed} ภาพ`
+      : `ยังไม่ได้ส่ง ${failed} ภาพ`
     : ok > 1
-      ? `ส่งภาพสำเร็จ ${ok} ไฟล์`
-      : 'ส่งภาพสำเร็จ';
+      ? `ส่งแล้ว ${ok} ภาพ`
+      : 'ส่งภาพแล้ว';
   $('#doneSub').textContent = failed
-    ? 'กด “ลองใหม่ทั้งหมด” ในคิวเพื่อส่งซ้ำ'
-    : ok > 1
-      ? 'ทุกคนในงานเห็นภาพแล้ว'
-      : 'ทุกคนในงานเห็นภาพแล้ว';
+    ? 'กด “ลองใหม่ทั้งหมด” ในคิว แล้วส่งซ้ำได้เลย'
+    : 'ทุกคนในงานเห็นภาพแล้ว';
   banner.hidden = false;
   banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -473,7 +489,7 @@ async function openRecorder() {
   if (state.expired) return;
 
   if (!recSupported()) {
-    toast('เครื่องนี้บันทึกวิดีโอในหน้าเว็บไม่ได้ เลือกวิดีโอจากคลังแทนได้เลย');
+    toast('เครื่องนี้บันทึกวิดีโอในหน้านี้ไม่ได้ เลือกวิดีโอจากอัลบั้มในเครื่องแทนได้เลย', 5000);
     $('#pickPhoto').click();
     return;
   }
@@ -485,7 +501,12 @@ async function openRecorder() {
     });
   } catch (e) {
     const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-    toast(denied ? 'ยังไม่ได้อนุญาตให้ใช้กล้อง ใช้ “วิดีโอจากคลัง” แทนได้' : 'เปิดกล้องไม่ได้ ใช้ “วิดีโอจากคลัง” แทน');
+    toast(
+      denied
+        ? 'ยังไม่ได้อนุญาตให้ใช้กล้อง เลือกวิดีโอจากอัลบั้มในเครื่องแทนได้เลย'
+        : 'เปิดกล้องในหน้านี้ไม่ได้ เลือกวิดีโอจากอัลบั้มในเครื่องแทนได้เลย',
+      5500
+    );
     return;
   }
 
@@ -546,7 +567,7 @@ function toggleRecording() {
       rec.mime = rec.mr.mimeType || '';
       rec.ext = /mp4/i.test(rec.mime) ? 'mp4' : 'webm';
     } catch {
-      toast('เครื่องนี้บันทึกวิดีโอไม่ได้ ใช้ “วิดีโอจากคลัง” แทน');
+      toast('เครื่องนี้บันทึกวิดีโอไม่ได้ เลือกวิดีโอจากอัลบั้มในเครื่องแทนได้เลย');
       closeRecorder(true);
       return;
     }
@@ -573,7 +594,7 @@ function toggleRecording() {
     const file = new File([blob], `clip-${makeId()}.${rec.ext}`, { type });
     const limitMb = state.cfg.maxVideoMb || 80;
     if (file.size > limitMb * MB) {
-      toast(`คลิปใหญ่เกิน ${limitMb} MB อัดให้สั้นลง`);
+      toast(`คลิปนี้ยาวเกินไป อัดให้สั้นลงอีกนิดแล้วลองใหม่`);
       return;
     }
     addFiles([file], 'video');
@@ -699,7 +720,7 @@ async function updatePendingBanner() {
   }
 
   const mb = stored.bytes >= 50000 ? ` (${(stored.bytes / 1048576).toFixed(1)} MB)` : '';
-  $('#pendingText').textContent = `มี ${files} ไฟล์รอส่ง${mb}`;
+  $('#pendingText').textContent = `มี ${files} ภาพรอส่ง${mb}`;
   bar.hidden = false;
   document.title = `(${files}) ภาพความทรงจำ`;
 }
@@ -840,11 +861,12 @@ async function runUpload(item) {
         0,
         exhausted ? 'bad' : ''
       );
-      if (exhausted) toast('ยังส่งไม่ได้ เก็บไฟล์ไว้ให้ลองใหม่ภายหลัง', 5000);
+      if (exhausted) toast('ยังส่งไม่ได้ เก็บภาพนี้ไว้ให้คุณแล้ว กลับมาเมื่อไรก็ส่งต่อได้', 6000);
       // keep it in IndexedDB: the next visit can finish the job
     } else {
       setItemState(item, `✕ ${info.text}`, 0, 'bad');
-      toast(`${info.text} (${info.tag})`, 5000);
+      console.info('[album] reason=' + info.code);
+      toast(info.text, 6000);
       await queueRemove(item.id);
     }
     item.lastError = info;
@@ -1230,7 +1252,7 @@ async function loadMore() {
     const r = await fetch(url, { cache: 'no-store' });
     if (r.status === 410) return setExpired();
     if (r.status === 429 || r.status === 503) {
-      toast('ระบบเต็มโควตาของวันนี้ ลองใหม่หลัง 07:00 น.', 6000);
+      toast('อัลบั้มรับภาพครบสำหรับวันนี้แล้ว กลับมาใหม่ได้หลัง 07:00 น.', 6000);
       return;
     }
     if (!r.ok) throw new Error('list_failed');
@@ -1845,7 +1867,7 @@ async function startZip() {
 
   const est = list.reduce((s, i) => s + (i.size || 0), 0);
   if (est > 3.5 * 1024 ** 3) {
-    toast('ชุดที่เลือกใหญ่เกิน 3.5 GB เลือกให้น้อยลงแล้วแบ่งดาวน์โหลด');
+    toast('ชุดนี้ใหญ่เกินกว่าจะดาวน์โหลดทีเดียว แบ่งเป็นสองรอบได้เลย', 5500);
     return;
   }
 
@@ -2112,7 +2134,7 @@ async function pickCardFromAlbum() {
 function downloadCard() {
   const cv = $('#cardCanvas');
   if (!cv) return;
-  if (!card.img) return toast('เลือกรูปก่อนดาวน์โหลด');
+  if (!card.img) return toast('เลือกรูปก่อนนะ แล้วกดดาวน์โหลด');
   cv.toBlob((blob) => {
     if (blob) saveBlob(blob, `thank-you-${Date.now()}.png`);
   }, 'image/png');

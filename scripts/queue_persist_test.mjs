@@ -106,7 +106,8 @@ await page2.locator('#reviewSend').click({ force: true });
 await page2.waitForTimeout(3000);
 
 const body = await page2.locator('body').innerText();
-check('413 shows a readable reason', body.includes('ไฟล์ใหญ่เกิน'), body.includes('E-413') ? 'tag shown' : 'no tag');
+check('413 shows a kind, plain reason', body.includes('ใหญ่เกินกว่าอัลบั้มจะรับได้'), body.match(/ใหญ่เกิน[^\n]{0,40}/)?.[0] || '');
+check('no error code is shown to the guest', !/E-\d{3}/.test(body), (body.match(/E-\d{3}/) || ['none'])[0]);
 check('413 is not queued for retry', !(await page2.locator('#retryAll').isVisible().catch(() => false)));
 const stored413 = await page2.evaluate(async () => (await (await import('/queue.js')).stats()).files);
 check('413 does not stay in IndexedDB', stored413 === 0, `${stored413} files`);
