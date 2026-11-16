@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF8F3">
+<meta name="description" content="อัลบั้มรวมภาพความทรงจำงานแต่ง — สแกน QR แล้วถ่ายรูปได้เลย">
+<title>The Wedding Collection</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/art/logo-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/art/logo-192.png">
+<link rel="apple-touch-icon" href="/art/logo-192.png">
+<meta property="og:title" content="The Wedding Collection">
+<meta property="og:image" content="/art/logo-512.png">
+<meta name="theme-color" content="#FBF8F3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Noto+Serif+Thai:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ─────────── album cover ─────────── -->
+<header class="cover">
+  <div class="coverWash" aria-hidden="true"></div>
+
+  <img class="sprig left" src="/art/sprig.webp" alt="" aria-hidden="true">
+  <img class="sprig right" src="/art/sprig.webp" alt="" aria-hidden="true">
+
+  <img class="emblem" src="/art/logo.webp" alt="The Wedding Collection" width="512" height="512">
+
+  <p id="eventTitle" class="eyebrow">Wedding Album</p>
+  <h1 id="eventNames" class="names">สมชาย &amp; แอน</h1>
+
+  <div class="coverMeta">
+    <span class="hair" aria-hidden="true"></span>
+    <span id="eventSub" class="date">วันอาทิตย์ที่ 22 พฤศจิกายน พ.ศ. 2569</span>
+    <span class="hair" aria-hidden="true"></span>
+  </div>
+
+  <img class="divider" src="/art/divider.webp" alt="" width="720" height="118">
+</header>
+
+<div class="tabsBar">
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="shoot" role="tab">ถ่ายรูป</button>
+    <button class="tab" data-tab="album" role="tab">ภาพความทรงจำ</button>
+  </nav>
+</div>
+
+<main>
+
+  <!-- ─────────── shoot ─────────── -->
+  <section id="tab-shoot" class="pane">
+
+    <div class="card">
+      <label class="field">
+        <span>ชื่อของคุณ</span>
+        <input id="guestName" type="text" maxlength="40" placeholder="เช่น สมชาย / พี่แอน" autocomplete="name">
+      </label>
+      <p class="hint">ใส่ชื่อครั้งเดียว ระบบจะจำไว้ · รูปจะถูกย่อให้เล็กลงก่อนส่งอัตโนมัติ</p>
+    </div>
+
+    <ul class="tips">
+      <li><b>อัดวิดีโอ</b> เปิดกล้องในหน้านี้ — อัดได้ครั้งละไม่เกิน 60 วินาที</li>
+      <li><b>เลือกจากคลัง</b> เลือกได้ทั้งรูปและวิดีโอจากเครื่องคุณ</li>
+      <li>ถ้าเครื่องไม่อนุญาตให้ใช้กล้อง ให้อัดจากแอปกล้องปกติ แล้วกลับมาเลือกจากคลัง</li>
+    </ul>
+
+    <div class="actions">
+      <label class="btn primary">
+        <input id="capturePhoto" type="file" accept="image/*" capture="environment" multiple hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3l-1.5-2Z"/>
+          <circle cx="12" cy="13" r="3.4"/>
+        </svg>
+        ถ่ายรูป
+      </label>
+
+      <button id="recBtn" type="button" class="btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/>
+          <path d="m15.5 11 5-3v8l-5-3"/>
+        </svg>
+        <span class="btnText">
+          อัดวิดีโอ
+          <small id="recLimit" class="btnSub">อัดได้ครั้งละไม่เกิน 60 วินาที</small>
+        </span>
+      </button>
+      <input id="captureVideo" type="file" accept="video/*" capture="environment" hidden>
+
+      <label class="btn">
+        <input id="pickPhoto" type="file" accept="image/*,video/*" multiple hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2"/>
+          <circle cx="8.5" cy="9.5" r="1.6"/>
+          <path d="m21 15.5-4.5-4.5L7 20.5"/>
+        </svg>
+        เลือกจากคลัง
+      </label>
+    </div>
+
+    <div id="doneBanner" class="doneBanner" hidden role="status" aria-live="polite">
+      <span class="doneIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 12.5 4.5 4.5L19 7"/>
+        </svg>
+      </span>
+      <div class="doneText">
+        <strong id="doneTitle">ส่งภาพสำเร็จ</strong>
+        <span id="doneSub"></span>
+      </div>
+      <button id="doneAlbum" class="btn sm" type="button">ดูอัลบั้ม</button>
+      <button id="doneClose" class="doneClose" type="button" aria-label="ปิด">✕</button>
+    </div>
+
+    <div id="reviewWrap" class="card review" hidden>
+      <div class="queueHead">
+        <strong>ตรวจก่อนส่ง</strong>
+        <span id="reviewCount" class="count">—</span>
+      </div>
+      <ul id="reviewList" class="reviewList"></ul>
+      <div id="framePick" class="framePick">
+        <span class="framePickLabel">กรอบรูป</span>
+        <div id="frameSwatches" class="swatches" role="radiogroup" aria-label="เลือกกรอบรูป"></div>
+      </div>
+      <div class="reviewFoot">
+        <button id="reviewClear" class="link" hidden>ลบทั้งหมด</button>
+        <button id="reviewSend" class="btn primary" disabled>อัปโหลด (0)</button>
+      </div>
+      <p class="hint">แตะรูปเพื่อดูเต็มจอ · กด ✕ เพื่อลบรูปที่ไม่ต้องการออก ยังไม่มีอะไรถูกส่งจนกว่าจะกด “อัปโหลด”</p>
+    </div>
+
+    <div id="queueWrap" class="card" hidden>
+      <div class="queueHead">
+        <strong>กำลังส่ง</strong>
+        <button id="retryAll" class="link" hidden>ลองใหม่ทั้งหมด</button>
+      </div>
+      <ul id="queue" class="queue"></ul>
+    </div>
+
+    <p class="footNote">รูปที่ส่งแล้วจะปรากฏบนอัลบั้มให้ทุกคนในงานเห็นทันที</p>
+  </section>
+
+  <!-- ─────────── stamp album ─────────── -->
+  <section id="tab-album" class="pane" hidden>
+
+    <div class="pageHead">
+      <h2 id="pageTitle">ภาพความทรงจำ</h2>
+      <span id="albumCount" class="count">—</span>
+    </div>
+
+    <div class="bar">
+      <div class="barActions">
+        <button id="selectAllBtn" class="btn sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="17" height="17" rx="3"/>
+            <path d="m8 12 3 3 5-6"/>
+          </svg>
+          เลือกทั้งหมด
+        </button>
+        <button id="zipBtn" class="btn sm primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v11"/><path d="m7.5 10 4.5 4.5 4.5-4.5"/><path d="M4.5 20.5h15"/>
+          </svg>
+          ดาวน์โหลดภาพทั้งหมดในรูปแบบ .zip
+        </button>
+      </div>
+    </div>
+
+    <div id="grid" class="grid"></div>
+
+    <div class="moreWrap">
+      <button id="moreBtn" class="btn sm" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+        โหลดเพิ่ม
+      </button>
+      <div id="albumEmpty" class="empty" hidden>
+        <img src="/art/logo.webp" alt="" width="512" height="512">
+        <p>ยังไม่มีภาพความทรงจำ — ไปแท็บ “ถ่ายรูป” แล้วเริ่มได้เลย</p>
+      </div>
+    </div>
+
+    <div id="zipPanel" class="card zipPanel" hidden>
+      <div class="zipHead">
+        <strong id="zipTitle">กำลังสร้าง ZIP</strong>
+        <span id="zipPct">0%</span>
+      </div>
+      <div class="progress"><div id="zipBar" class="progressFill"></div></div>
+      <p id="zipMsg" class="hint"></p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ─────────── lightbox ─────────── -->
+<div id="lightbox" class="lightbox" hidden>
+  <button id="lbClose" class="lbClose" aria-label="ปิด">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </svg>
+  </button>
+  <div id="lbBody" class="lbBody"></div>
+  <div class="lbBar">
+    <span id="lbMeta"></span>
+    <div class="lbCenter">
+      <div id="lbFrames" class="swatches lbSwatches" role="radiogroup" aria-label="เลือกกรอบก่อนดาวน์โหลด"></div>
+      <span id="lbNote" class="lbNote" hidden>ตัวอย่างกรอบ · กดดาวน์โหลดเพื่อบันทึกไฟล์</span>
+    </div>
+    <button id="lbDownload" class="btn sm" type="button">ดาวน์โหลดภาพนี้</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- ─────────── in-page video recorder ─────────── -->
+<div id="recWrap" class="rec" hidden>
+  <div class="recCard" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+    <div class="recHead">
+      <strong id="recTitle">อัดวิดีโอ</strong>
+      <span id="recTime" class="count">00:00</span>
+    </div>
+    <video id="recPreview" playsinline muted autoplay></video>
+    <div class="recBar">
+      <button id="recCancel" class="link" type="button">ยกเลิก</button>
+      <button id="recToggle" class="btn primary" type="button">เริ่มอัด</button>
+    </div>
+    <p id="recHint" class="hint">อัดได้สูงสุด 60 วินาที · พอกดหยุด วิดีโอจะเข้าคิว “ตรวจก่อนส่ง”</p>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

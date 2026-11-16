@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RJ-Wedding Album — shared wedding photo album</title>
+<meta name="description" content="RJ-Wedding Album is a private shared photo album for the wedding of Rujirata & Jenjobthid, 22 November 2026. Guests take photos in the browser and everyone sees them in one album.">
+<style>
+  :root { --ink: #2a2118; --paper: #fdfaf4; --gold: #9a7b3f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 20px;
+         background: var(--paper); color: var(--ink);
+         font: 16px/1.75 "Sarabun", "Noto Sans Thai", system-ui, -apple-system, sans-serif; }
+  main { max-width: 720px; }
+  .rule { width: 64px; height: 2px; background: var(--gold); margin: 0 0 22px; }
+  h1 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 2rem; letter-spacing: .04em; margin: 0 0 6px; }
+  .date { color: var(--gold); letter-spacing: .18em; text-transform: uppercase; font-size: .78rem; margin: 0 0 26px; }
+  h2 { font-size: .95rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin: 26px 0 6px; }
+  ul { padding-left: 20px; }
+  li { margin: 5px 0; }
+  a { color: var(--gold); }
+  .links { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 14px; font-size: .92rem; }
+  .links a { border: 1px solid #e6dcc8; border-radius: 999px; padding: 7px 16px; text-decoration: none; background: #fff; }
+  footer { margin-top: 34px; color: #6b5c47; font-size: .82rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="rule"></div>
+  <h1>RJ-Wedding Album</h1>
+  <p class="date">22 November 2026 · Bangkok</p>
+
+  <p>
+    A private, shared photo album for one wedding. Guests open a link, take photos or short videos in the browser, and the
+    album collects them in one place so the couple can relive the day — and keep a copy in their own Google Drive afterwards.
+  </p>
+
+  <h2>What the app does</h2>
+  <ul>
+    <li>Takes photos and 60-second videos directly in the phone browser (no app install).</li>
+    <li>Shows everyone's photos in one shared album, with decorative stamp frames.</li>
+    <li>Lets a guest download a photo with the frame baked in, or the whole album as a ZIP.</li>
+    <li>Archives every file into a Google Drive folder owned by the couple, using the <code>drive.file</code> permission only.</li>
+  </ul>
+
+  <h2>Who it is for</h2>
+  <ul>
+    <li>Invited guests of the wedding, who receive the private link and event code.</li>
+    <li>The couple, who operate the album and hold the archive.</li>
+  </ul>
+
+  <h2>Privacy in one line</h2>
+  <p>
+    Photos go to the couple's album and their Drive; nothing is sold, published, or shared with advertisers.
+    The public album closes on 22 December 2026.
+  </p>
+
+  <div class="links">
+    <a href="/">Open the album</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/terms.html">Terms of Service</a>
+  </div>
+
+  <footer>Operated by the couple for their own wedding. Contact: the email shown on the app's consent screen</footer>
+</main>
+</body>
+</html>

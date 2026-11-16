@@ -1,0 +1,32 @@
+{
+  "name": "wedding-album",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Guest camera upload + shared album on Cloudflare Workers + R2 (free tier)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "bucket:create": "wrangler r2 bucket create wedding-album-media",
+    "test:smoke": "python scripts/smoke_test.py",
+    "test:zip": "node scripts/zip_test.mjs && python scripts/verify_zip.py",
+    "test:prep": "node scripts/prep_test.mjs",
+    "test:ui": "node scripts/ui_test.mjs",
+    "test:load": "python scripts/load_test.py 40 3",
+    "test:thai": "python scripts/check_thai.py",
+    "test:unit": "node --test tests/lib.test.mjs tests/util.test.mjs",
+    "test:scenarios": "python scripts/scenario_test.py",
+    "test:stability": "python scripts/stability_test.py",
+    "test:rec": "node scripts/rec_test.mjs",
+    "test:frames": "node scripts/frame_download_test.mjs",
+    "test:prod": "python scripts/prod_test.py",
+    "test:ui:prod": "node scripts/ui_test.mjs",
+    "demo": "node scripts/demo_seed.mjs 8",
+    "shot": "node scripts/shot.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.50.0",
+    "wrangler": "^4.0.0"
+  }
+}

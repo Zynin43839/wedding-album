@@ -1,0 +1,50 @@
+# Public copy of the deploy config. Real values live in wrangler.prod.toml
+# (gitignored). Deploy the event with: npx wrangler deploy -c wrangler.prod.toml
+name = "wedding-album"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+# Static files (index.html, app.js, ...) are served first.
+# Anything else ( /api/* , /i/* ) falls through to the Worker.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "wedding-album-media"
+
+[vars]
+# ---- ตั้งค่าตรงนี้ ----
+# ชื่อคู่บ่าวสาว (บรรทัดใหญ่กลางหน้า) — ใช้ชื่อจากกาณ์ดเชิญ
+EVENT_NAMES = "Demo Couple"
+# ป้ายเล็กเหนือชื่อ
+EVENT_TITLE      = "The Wedding Collection"
+EVENT_DATE       = "2026-11-22"
+# รหัสเข้าห้อง (ใส่ในลิงก์ ?e=...) เว้นว่าง = เปิดให้ทุกคน
+EVENT_CODE = "demo-code"
+# วันหมดอายุ (ISO). หลังเวลานี้จะอัปโหลด/ดูไม่ได้
+# เว้นว่าง = ไม่มีวันหมดอายุ
+# 2026-12-22 = 30 วันหลังงาน (เจ้าภาพเลือก 2026-11-15)
+EXPIRES_AT       = "2026-12-22T23:59:59+07:00"
+# ขนาดไฟล์สูงสุด (MB)
+MAX_PHOTO_MB     = "12"
+MAX_VIDEO_MB     = "80"
+# ถ้าเปิด custom domain ของ R2 (แนะนำมาก) ใส่แบบไม่ปิดท้ายด้วย /
+# เช่น "https://cdn.yourdomain.com" -> รูปจะเสิร์ฟจาก CDN ตรง ไม่กิน Worker request
+PUBLIC_MEDIA_BASE = ""
+
+# ---- Google Drive archive (ไม่บังคับ) ----
+# ใส่ ID ของโฟลเดอร์ปลายทาง แล้วตั้ง secret 3 ตัวด้วย `wrangler secret put`
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
+# ถ้าเว้นว่าง cron จะไม่ทำอะไรเลย (ปลอดภัย)
+SYNC_MIN_BATCH  = "1"
+SYNC_ON_FAIL    = "requeue"
+SYNC_CONCURRENCY = "4"
+DRIVE_FOLDER_ID = ""
+# ยิง sync ทุก 15 นาที (เฉพาะเมื่อตั้ง DRIVE_FOLDER_ID + secret แล้ว)
+[triggers]
+crons = ["*/15 * * * *"]
+
+[observability]
+enabled = true

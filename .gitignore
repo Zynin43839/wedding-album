@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# Things that must never be committed
+# ---------------------------------------------------------------------------
+
+# Production deploy config for the real event: contains the album access code,
+# the couple's names and the Drive folder id. Deploy with:
+#   npx wrangler deploy -c wrangler.prod.toml
+wrangler.prod.toml
+
+# Local secrets (Wrangler reads this in `wrangler dev`)
+.dev.vars
+.dev.vars.*
+
+# Google OAuth client JSON downloaded from the Cloud console
+client_secret_*.json
+
+# ---------------------------------------------------------------------------
+# Build / tool state
+# ---------------------------------------------------------------------------
+node_modules/
+.wrangler/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ---------------------------------------------------------------------------
+# Artefacts and scratch files (regenerable, or evidence kept elsewhere)
+# ---------------------------------------------------------------------------
+_backup/
+docs/screenshots/
+*.log
+*.zip
+
+# ---------------------------------------------------------------------------
+# OS noise
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
