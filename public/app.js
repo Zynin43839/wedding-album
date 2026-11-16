@@ -1017,6 +1017,10 @@ async function loadMore() {
     const url = '/api/list' + q() + (state.cursor ? `&cursor=${encodeURIComponent(state.cursor)}` : '');
     const r = await fetch(url, { cache: 'no-store' });
     if (r.status === 410) return setExpired();
+    if (r.status === 429 || r.status === 503) {
+      toast('ระบบเต็มโควตาของวันนี้ — ลองใหม่อีกครั้งหลัง 07:00 น.', 6000);
+      return;
+    }
     if (!r.ok) throw new Error('list_failed');
     const data = await r.json();
 
@@ -1569,14 +1573,63 @@ function closeLightbox() {
 
 /* ───────────────────────────── ZIP export ───────────────────────────── */
 
-async function startZip() {
-  const picked = state.items.filter((i) => state.selected.has(i.id));
-  const list = picked.length ? picked : state.items;
+/**
+ * Walk every album page, so "ดาวน์โหลดทั้งหมด" means the whole album and not
+ * only the pages the guest happened to scroll to (the old behaviour silently
+ * produced an incomplete archive).
+ */
+async function allAlbumItems(onProgress) {
+  const out = [];
+  const seen = new Set();
+  let cursor = null;
 
-  if (!list.length) {
-    toast('ยังไม่มีรายการให้ดาวน์โหลด');
-    return;
+  for (let page = 0; page < 400; page++) {
+    const url = '/api/list' + q() + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+    const r = await fetch(url, { cache: 'no-store' });
+    if (r.status === 410) {
+      setExpired();
+      break;
+    }
+    if (!r.ok) break;
+    const data = await r.json();
+    for (const it of data.items || []) {
+      if (seen.has(it.id)) continue;
+      seen.add(it.id);
+      out.push(it);
+    }
+    if (onProgress) onProgress(out.length);
+    cursor = data.cursor;
+    if (!cursor) break;
   }
+  return out;
+}
+
+async function startZip() {
+  let picked = state.items.filter((i) => state.selected.has(i.id));
+
+  const panel = $('#zipPanel');
+  const bar = $('#zipBar');
+  const pct = $('#zipPct');
+  const msg = $('#zipMsg');
+
+  // nothing selected = the whole album, fetched page by page
+  if (!picked.length) {
+    panel.hidden = false;
+    $('#zipTitle').textContent = 'กำลังรวบรวมรายการ';
+    bar.style.width = '0%';
+    pct.textContent = '';
+    msg.textContent = 'อ่านรายการทั้งหมด…';
+    picked = await allAlbumItems((n) => {
+      msg.textContent = `พบ ${n} รายการ…`;
+    });
+    if (!picked.length) {
+      panel.hidden = true;
+      toast('ยังไม่มีรายการให้ดาวน์โหลด');
+      return;
+    }
+  }
+
+  const list = picked;
 
   const est = list.reduce((s, i) => s + (i.size || 0), 0);
   if (est > 3.5 * 1024 ** 3) {
@@ -1584,10 +1637,6 @@ async function startZip() {
     return;
   }
 
-  const panel = $('#zipPanel');
-  const bar = $('#zipBar');
-  const pct = $('#zipPct');
-  const msg = $('#zipMsg');
   panel.hidden = false;
   msg.textContent = `${list.length} ไฟล์`;
   $('#zipTitle').textContent = 'กำลังสร้าง ZIP';

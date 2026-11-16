@@ -14,6 +14,16 @@ binding = "ASSETS"
 binding = "BUCKET"
 bucket_name = "wedding-album-media"
 
+
+# Atomic lock for the Drive archive (one run at a time). SQLite-backed, which is
+# the only backend available on the free plan.
+[[durable_objects.bindings]]
+name = "SYNC_LOCK"
+class_name = "SyncLock"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SyncLock"]
 [vars]
 # ---- ตั้งค่าตรงนี้ ----
 # ชื่อคู่บ่าวสาว (บรรทัดใหญ่กลางหน้า) — ใช้ชื่อจากกาณ์ดเชิญ

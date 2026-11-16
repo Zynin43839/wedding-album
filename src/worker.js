@@ -49,9 +49,45 @@ export default {
   /** Cron: push un-synced objects into the couple's Drive folder. */
   async scheduled(event, env, ctx) {
     if (!env.DRIVE_FOLDER_ID || !env.GOOGLE_REFRESH_TOKEN) return;
-    ctx.waitUntil(syncBatch(env, Number(env.SYNC_BATCH) || 200).catch(() => {}));
+    ctx.waitUntil(
+      withSyncLock(env, () => syncBatch(env, Number(env.SYNC_BATCH) || 200)).catch(() => {})
+    );
   },
 };
+
+/* ------------------------------------------------------------ sync lock */
+
+/**
+ * One archive run at a time.
+ *
+ * Storage reads/writes inside a Durable Object are serialized, so a simple
+ * "if nobody holds it, take it" is a real mutex. A TTL makes an abandoned run
+ * (isolate killed mid-push) self-heal instead of blocking the archive forever.
+ */
+export class SyncLock {
+  constructor(state) {
+    this.state = state;
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    const now = Date.now();
+    const until = Number((await this.state.storage.get('until')) || 0);
+
+    if (url.pathname === '/release') {
+      await this.state.storage.delete('until');
+      return json({ released: true });
+    }
+
+    if (until > now) {
+      return json({ acquired: false, remaining: Math.round((until - now) / 1000) });
+    }
+
+    const ttl = Math.max(60, Math.min(3600, Number(url.searchParams.get('ttl')) || 600));
+    await this.state.storage.put('until', now + ttl * 1000);
+    return json({ acquired: true, ttl });
+  }
+}
 
 /* ---------------------------------------------------------- google drive */
 
@@ -391,9 +427,34 @@ async function handleSync(request, env, url) {
       });
     }
     const force = url.searchParams.get('force') === '1';
-    return json(await syncBatch(env, limit, force));
+    const result = await withSyncLock(env, () => syncBatch(env, limit, force));
+    return json(result);
   } catch (e) {
     return json({ error: 'sync_failed', detail: String((e && e.message) || e).slice(0, 200) }, 502);
+  }
+}
+
+/** Run `fn` only if no other archive run holds the lock. */
+async function withSyncLock(env, fn) {
+  if (!env.SYNC_LOCK) return fn(); // local dev / older deploy: no lock available
+  const stub = env.SYNC_LOCK.get(env.SYNC_LOCK.idFromName('drive-archive'));
+
+  let hold;
+  try {
+    hold = await (await stub.fetch('https://lock/acquire?ttl=900')).json();
+  } catch {
+    return fn(); // a broken lock must not stop the archive
+  }
+  if (!hold.acquired) return { skipped: 'locked', remaining: hold.remaining };
+
+  try {
+    return await fn();
+  } finally {
+    try {
+      await stub.fetch('https://lock/release', { method: 'POST' });
+    } catch {
+      /* TTL will release it */
+    }
   }
 }
 
